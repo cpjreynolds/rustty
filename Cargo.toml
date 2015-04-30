@@ -5,3 +5,6 @@ authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
 
 [dependencies]
 libc = "0.1.6"
+
+[dependencies.rust-bindgen]
+git = "https://github.com/crabtw/rust-bindgen.git"
