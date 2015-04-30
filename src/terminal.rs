@@ -10,14 +10,14 @@ const TIOCGWINSZ: libc::c_ulong = 0x40087468;
 #[cfg(target_os="linux")]
 const TIOCGWINSZ: libc::c_int = 0x5413;
 
-pub struct Window {
-    pub tty: File,
+pub struct Terminal {
+    tty: File,
     size: WindowSize,
 }
 
-impl Window {
-    pub fn new() -> Window {
-        Window {
+impl Terminal {
+    pub fn new() -> Terminal {
+        Terminal {
             tty: {
                 OpenOptions::new()
                     .read(true)
