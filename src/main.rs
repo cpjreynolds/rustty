@@ -1,6 +1,6 @@
 extern crate rustty;
 
-use rustty::terminal::Terminal;
+use rustty::Terminal;
 
 fn main() {
     let mut term = Terminal::new();
