@@ -12,7 +12,7 @@ const TIOCGWINSZ: libc::c_int = 0x5413;
 
 pub struct Window {
     pub tty: File,
-    pub size: WindowSize,
+    size: WindowSize,
 }
 
 impl Window {
@@ -44,15 +44,15 @@ impl Window {
 }
 
 #[repr(C)]
-pub struct WindowSize {
-    pub ws_row: libc::c_ushort,
-    pub ws_col: libc::c_ushort,
-    pub ws_xpixel: libc::c_ushort,
-    pub ws_ypixel: libc::c_ushort,
+struct WindowSize {
+    ws_row: libc::c_ushort,
+    ws_col: libc::c_ushort,
+    ws_xpixel: libc::c_ushort,
+    ws_ypixel: libc::c_ushort,
 }
 
 impl WindowSize {
-    pub fn new() -> WindowSize {
+    fn new() -> WindowSize {
         WindowSize {
             ws_row: 0,
             ws_col: 0,
