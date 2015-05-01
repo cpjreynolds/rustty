@@ -1,4 +1,5 @@
 use nix::sys::ioctl::*;
+use nix::sys::termios;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::os::unix::io::*;
@@ -7,19 +8,34 @@ pub use nix::Result;
 
 pub struct Terminal {
     tty: File,
+    ttyfd: RawFd,
     size: Winsize,
+    orig_attr: termios::Termios,
 }
 
 impl Terminal {
-    pub fn new() -> Terminal {
-        Terminal {
-            tty: {
-                OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open("/dev/tty").unwrap()
-            },
+    pub fn new() -> Result<Terminal> {
+        let mut tmptty = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open("/dev/tty").unwrap();
+        let tmpttyfd = tmptty.as_raw_fd();
+        let mut tmpterm = Terminal {
+            tty: tmptty,
+            ttyfd: tmpttyfd,
             size: Winsize::new(),
+            orig_attr: termios::tcgetattr(tmpttyfd).unwrap(),
+        };
+        match tmpterm.update_size() {
+            Ok(()) => Ok(tmpterm),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub fn destroy(self) -> Result<()> {
+        match termios::tcsetattr(self.ttyfd, termios::SetArg::TCSANOW, &self.orig_attr) {
+            Ok(()) => Ok(()),
+            Err(error) => Err(error),
         }
     }
 
@@ -50,3 +66,4 @@ impl Constructor<Winsize> for Winsize {
         }
     }
 }
+
