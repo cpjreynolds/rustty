@@ -2,9 +2,11 @@
 name = "rustty"
 version = "0.1.0"
 authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
+description = "Pure Rust termbox implementation."
+documentation = "https://cpjreynolds.github.com/rustty"
+repository = "https://github.com/cpjreynolds/rustty"
+readme = "README.md"
+license = "MIT"
 
 [dependencies]
 libc = "0.1.6"
-
-[dependencies.rust-bindgen]
-git = "https://github.com/crabtw/rust-bindgen.git"
