@@ -11,4 +11,5 @@ license = "MIT"
 [dependencies]
 libc = "*"
 nix = "*"
+bitflags = "*"
 
