@@ -1,6 +1,6 @@
 [package]
 name = "rustty"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
 description = "Pure Rust termbox implementation."
 documentation = "https://cpjreynolds.github.com/rustty"
@@ -9,6 +9,6 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-libc = "0.1.6"
-nix = "0.3.5"
+libc = "*"
+nix = "*"
 

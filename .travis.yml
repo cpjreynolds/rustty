@@ -1,4 +1,14 @@
 language: rust
+
 rust:
- - beta
- - nightly
+  - nightly
+  - beta
+
+script:
+  - cargo test
+  - cargo doc
+
+after_success:
+  test $TRAVIS_PULL_REQUEST == "false" &&
+  test $TRAVIS_BRANCH == "master" &&
+  sh etc/deploy-docs.sh
