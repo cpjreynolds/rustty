@@ -9,7 +9,7 @@ use std::os::unix::io::AsRawFd;
 
 use nix::sys::termios;
 
-mod terminal;
+mod device;
 
 pub fn init() -> Terminal {
     let tty = OpenOptions::new()
