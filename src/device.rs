@@ -1,3 +1,7 @@
+use std::env;
+
+use TtyError;
+
 const XTERM_FUNCS: &'static [&'static str] = &[
     "\x1b[?1049h",
     "\x1b[?1049l",
@@ -46,10 +50,29 @@ pub struct Device {
     funcs: &'static [&'static str],
 }
 
-const devices: &'static [Device] = &[
+impl Device {
+    pub fn get() -> Result<&'static Device, TtyError> {
+        if let Ok(dname) = env::var("TERM") {
+            if let Some(dev) = DEVICES.iter().find(|d| { d.name == dname }) {
+                Ok(dev)
+            } else {
+                Err(TtyError::new("Unsupported terminal"))
+            }
+        } else {
+            Err(TtyError::new("TERM not set"))
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        self.name
+    }
+}
+
+const DEVICES: &'static [Device] = &[
     Device {
         name: "xterm",
         keys: XTERM_KEYS,
         funcs: XTERM_FUNCS,
     },
 ];
+
