@@ -19,7 +19,6 @@ use DFunction;
 use TtyError;
 use CellBuffer;
 use Color;
-use ByteBuffer;
 
 
 /// Set to true by the sigwinch handler. Reset to false when handled elsewhere.
