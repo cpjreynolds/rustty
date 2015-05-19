@@ -7,6 +7,6 @@ mod device;
 mod error;
 mod terminal;
 
-pub use device::Device;
+pub use device::{Device, DFunction};
 pub use error::TtyError;
 pub use terminal::Terminal;

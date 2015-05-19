@@ -10,6 +10,8 @@ license = "MIT"
 
 [dependencies]
 libc = "*"
-nix = "*"
 bitflags = "*"
 time = "*"
+
+[dependencies.nix]
+git = "https://github.com/carllerche/nix-rust.git"

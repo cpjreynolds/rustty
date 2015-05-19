@@ -1,4 +1,5 @@
 use std::env;
+use std::ops::Index;
 
 use TtyError;
 
@@ -51,7 +52,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn get() -> Result<&'static Device, TtyError> {
+    pub fn new() -> Result<&'static Device, TtyError> {
         if let Ok(dname) = env::var("TERM") {
             if let Some(dev) = DEVICES.iter().find(|d| { d.name == dname }) {
                 Ok(dev)
@@ -68,9 +69,35 @@ impl Device {
     }
 }
 
+impl Index<DFunction> for Device {
+    type Output = str;
+
+    fn index(&self, index: DFunction) -> &str {
+        self.funcs[index as usize]
+    }
+}
+
+pub enum DFunction {
+    EnterCa,
+    ExitCa,
+    ShowCursor,
+    HideScreen,
+    ClearScreen,
+    Sgr0,
+    Underline,
+    Bold,
+    Blink,
+    Reverse,
+    EnterKeypad,
+    ExitKeypad,
+    EnterMouse,
+    ExitMouse,
+    FuncsNum,
+}
+
 const DEVICES: &'static [Device] = &[
     Device {
-        name: "xterm",
+        name: "xterm-256color",
         keys: XTERM_KEYS,
         funcs: XTERM_FUNCS,
     },
