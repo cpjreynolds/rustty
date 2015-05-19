@@ -65,5 +65,10 @@ pub enum Attribute {
     Default = 0x0000,
     Bold = 0x0100,
     Underline = 0x0200,
+    BoldUnderline = 0x300,
     Reverse = 0x0400,
+    BoldReverse = 0x0500,
+    UnderlineReverse = 0x0600,
+    BoldUnderlineReverse = 0x0700,
 }
+

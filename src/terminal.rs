@@ -44,7 +44,7 @@ pub struct Terminal {
     device: &'static Device,
     frontbuf: CellBuffer,
     backbuf: CellBuffer,
-    bytebuf: ByteBuffer,
+    outbuf: Vec<u8>,
     fgcolor: Color,
     bgcolor: Color,
 }
@@ -94,7 +94,7 @@ impl Terminal {
             device: device,
             frontbuf: CellBuffer::new(0, 0),
             backbuf: CellBuffer::new(0, 0),
-            bytebuf: ByteBuffer::new(0),
+            outbuf: Vec::new(),
             fgcolor: Color::Default,
             bgcolor: Color::Default,
         };
