@@ -18,7 +18,11 @@ use Device;
 use DFunction;
 use TtyError;
 
+/// Set to true by the sigwinch handler. Reset to false when handled elsewhere.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
+
+/// Set to true when there is an active Terminal instance.
+/// Reset to false when it goes out of scope.
 static RUSTTY_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
 #[cfg(target_os="macos")]
@@ -39,22 +43,29 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new() -> Result<Terminal, TtyError> {
+
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(TtyError::new("Rustty already initialized"))
         }
+
         let tty = OpenOptions::new()
             .write(true)
             .read(true)
             .open("/dev/tty")
             .unwrap();
+
+        let ttyfd = tty.as_raw_fd();
+
         let device = Device::new().unwrap();
+
         let sa_winch = signal::SigAction::new(sigwinch_handler, SockFlag::empty(), SigSet::empty());
         unsafe {
             if let Err(e) = signal::sigaction(SIGWINCH, &sa_winch) {
                 panic!("{:?}", e);
             }
         }
-        let orig_tios = termios::tcgetattr(tty.as_raw_fd()).unwrap();
+
+        let orig_tios = termios::tcgetattr(ttyfd).unwrap();
         let mut tios = orig_tios.clone();
         tios.c_iflag = tios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
         tios.c_oflag = tios.c_oflag & !OPOST;
@@ -63,8 +74,8 @@ impl Terminal {
         tios.c_cflag = tios.c_cflag | CS8;
         tios.c_cc[VMIN] = 0;
         tios.c_cc[VTIME] = 0;
-        termios::tcsetattr(tty.as_raw_fd(), SetArg::TCSAFLUSH, &tios).unwrap();
-        let ttyfd = tty.as_raw_fd();
+
+        termios::tcsetattr(ttyfd, SetArg::TCSAFLUSH, &tios).unwrap();
         let mut terminal = Terminal {
             orig_tios: orig_tios,
             tios: tios,
@@ -78,22 +89,22 @@ impl Terminal {
         Ok(terminal)
     }
 
-    pub fn clear(&mut self) {
-        write!(self.tty, "{}", &self.device[DFunction::ClearScreen]).unwrap();
-    }
-
+    /// Returns the width of the terminal.
     pub fn width(&self) -> u16 {
         self.width
     }
 
+    /// Returns the height of the terminal.
     pub fn height(&self) -> u16 {
         self.height
     }
 
+    /// Returns the size of the terminal as (x, y).
     pub fn size(&self) -> (u16, u16) {
         (self.width, self.height)
     }
 
+    /// Updates the size of the Terminal object to reflect that of the underlying terminal.
     fn update_size(&mut self) -> Result<(), TtyError> {
         let mut ws = WindowSize::new();
         let status = unsafe {
@@ -107,6 +118,10 @@ impl Terminal {
             },
             Err(e) => { Err(TtyError::from_nix(e)) },
         }
+    }
+
+    pub fn clear(&mut self) {
+        write!(self.tty, "{}", &self.device[DFunction::ClearScreen]).unwrap();
     }
 
 }

@@ -6,6 +6,7 @@ extern crate nix;
 mod device;
 mod error;
 mod terminal;
+mod cellbuffer;
 
 pub use device::{Device, DFunction};
 pub use error::TtyError;
