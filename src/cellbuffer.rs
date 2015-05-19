@@ -1,20 +1,53 @@
-pub struct CellBuffer<'a> {
-    width: u32,
-    height: u32,
-    cells: &'a [Cell],
+use std::iter::repeat;
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct CellBuffer {
+    width: usize,
+    height: usize,
+    cells: Vec<Cell>,
 }
 
+impl CellBuffer {
+    pub fn new(x: usize, y: usize) -> CellBuffer {
+        CellBuffer {
+            width: x,
+            height: y,
+            cells: Vec::with_capacity(x * y),
+        }
+    }
+}
+
+// Using until resize hits stable
+pub trait Resizable<T> {
+    fn resize(&mut self, new_len: usize, value: T);
+}
+
+impl Resizable<Cell> for Vec<Cell> {
+    fn resize(&mut self, new_len: usize, value: Cell) {
+        let len = self.len();
+
+        if new_len > len {
+            self.extend(repeat(value).take(new_len - len));
+        } else {
+            self.truncate(new_len);
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
 pub struct Cell {
-    ch: char,
+    ch: u8,
     fg: Style,
     bg: Style,
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub struct Style {
     color: Color,
     attribute: Attribute,
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum Color {
     Default,
     Black,
@@ -27,9 +60,10 @@ pub enum Color {
     White,
 }
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum Attribute {
-    Default = 0b000,
-    Bold = 0b001,
-    Underline = 0b010,
-    Reverse = 0b100,
+    Default = 0x0000,
+    Bold = 0x0100,
+    Underline = 0x0200,
+    Reverse = 0x0400,
 }

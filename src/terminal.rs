@@ -17,6 +17,10 @@ use nix::sys::ioctl;
 use Device;
 use DFunction;
 use TtyError;
+use CellBuffer;
+use Color;
+use ByteBuffer;
+
 
 /// Set to true by the sigwinch handler. Reset to false when handled elsewhere.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -39,24 +43,27 @@ pub struct Terminal {
     width: u16,
     height: u16,
     device: &'static Device,
+    frontbuf: CellBuffer,
+    backbuf: CellBuffer,
+    bytebuf: ByteBuffer,
+    fgcolor: Color,
+    bgcolor: Color,
 }
 
 impl Terminal {
     pub fn new() -> Result<Terminal, TtyError> {
-
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(TtyError::new("Rustty already initialized"))
         }
 
-        let tty = OpenOptions::new()
+        let device = try!(Device::new());
+
+        let tty = try!(OpenOptions::new()
             .write(true)
             .read(true)
-            .open("/dev/tty")
-            .unwrap();
+            .open("/dev/tty"));
 
         let ttyfd = tty.as_raw_fd();
-
-        let device = Device::new().unwrap();
 
         let sa_winch = signal::SigAction::new(sigwinch_handler, SockFlag::empty(), SigSet::empty());
         unsafe {
@@ -66,8 +73,10 @@ impl Terminal {
         }
 
         let orig_tios = termios::tcgetattr(ttyfd).unwrap();
+
         let mut tios = orig_tios.clone();
-        tios.c_iflag = tios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+        tios.c_iflag = tios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP |
+                                        INLCR | IGNCR | ICRNL | IXON);
         tios.c_oflag = tios.c_oflag & !OPOST;
         tios.c_lflag = tios.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
         tios.c_cflag = tios.c_cflag & !(CSIZE | PARENB);
@@ -84,8 +93,13 @@ impl Terminal {
             width: 0,
             height: 0,
             device: device,
+            frontbuf: CellBuffer::new(0, 0),
+            backbuf: CellBuffer::new(0, 0),
+            bytebuf: ByteBuffer::new(0),
+            fgcolor: Color::Default,
+            bgcolor: Color::Default,
         };
-        terminal.update_size().unwrap();
+        try!(terminal.update_size());
         Ok(terminal)
     }
 
@@ -105,6 +119,7 @@ impl Terminal {
     }
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
+    /// Resizes the cellbuffer as well.
     fn update_size(&mut self) -> Result<(), TtyError> {
         let mut ws = WindowSize::new();
         let status = unsafe {
@@ -112,12 +127,12 @@ impl Terminal {
         };
         match status {
             Ok(..) => {
-                self.width = ws.ws_row;
-                self.height = ws.ws_col;
-                Ok(())
+                self.width = ws.ws_col;
+                self.height = ws.ws_row;
             },
-            Err(e) => { Err(TtyError::from_nix(e)) },
+            Err(e) => { return Err(TtyError::from_nix(e)) },
         }
+        Ok(())
     }
 
     pub fn clear(&mut self) {
