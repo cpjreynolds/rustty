@@ -32,13 +32,27 @@ impl CellBuffer {
         }
 
         if newrows > self.rows {
-            for row in &mut self.cells {
-                row.extend(iter::repeat(blank).take(newcols - self.cols));
+            if newcols > self.cols {
+                for row in &mut self.cells {
+                    row.extend(iter::repeat(blank).take(newcols - self.cols));
+                }
+            } else {
+                for row in &mut self.cells {
+                    row.truncate(newcols);
+                }
             }
+            self.cells.extend(iter::repeat(vec![blank; newcols]).take(newrows - self.rows));
         } else {
-            for row in &mut self.cells {
-                row.truncate(newcols);
+            if newcols > self.cols {
+                for row in &mut self.cells {
+                    row.extend(iter::repeat(blank).take(newcols - self.cols));
+                }
+            } else {
+                for row in &mut self.cells {
+                    row.truncate(newcols);
+                }
             }
+            self.cells.truncate(newrows);
         }
 
         self.rows = newrows;

@@ -106,7 +106,7 @@ impl Terminal {
         try!(terminal.send_clear(Style::default(), Style::default()));
 
         try!(terminal.update_size());
-        terminal.clear();
+        try!(terminal.clear());
         Ok(terminal)
     }
 
@@ -125,15 +125,16 @@ impl Terminal {
         (self.width, self.height)
     }
 
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> Result<(), TtyError> {
+        try!(self.update_size());
         self.backbuf.clear(Cell::blank(self.fg, self.bg));
+        Ok(())
     }
 
     pub fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), TtyError> {
         try!(self.send_style(fg, bg));
         try!(self.outbuf.write_all(&self.device[DFunction::ClearScreen]));
         try!(self.flush());
-        self.outbuf.clear();
         Ok(())
     }
 
@@ -200,6 +201,8 @@ impl Terminal {
         let blank = Cell::blank(self.fg, self.bg);
         self.backbuf.resize(self.width, self.height, blank);
         self.frontbuf.resize(self.width, self.height, blank);
+        try!(self.clear());
+        try!(self.send_clear(Style::default(), Style::default()));
         Ok(())
     }
 
