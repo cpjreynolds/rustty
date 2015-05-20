@@ -1,46 +1,48 @@
-use std::iter::repeat;
+use std::iter;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct CellBuffer {
-    width: usize,
-    height: usize,
-    cells: Vec<Cell>,
+    cols: usize,
+    rows: usize,
+    cells: Vec<Vec<Cell>>,
 }
 
 impl CellBuffer {
-    pub fn new(width: usize, height: usize) -> CellBuffer {
+    pub fn new(cols: usize, rows: usize) -> CellBuffer {
         CellBuffer {
-            width: width,
-            height: height,
-            cells: Vec::with_capacity(width * height),
+            cols: cols,
+            rows: rows,
+            cells: vec![vec![Cell::blank_default(); rows]; cols],
         }
     }
 
-    pub fn clear(&mut self, new: Cell) {
-        for cell in self.cells.iter_mut() {
-            cell.ch = new.ch;
-            cell.fg = new.fg;
-            cell.bg = new.bg;
+    pub fn clear(&mut self, blank: Cell) {
+        for row in &mut self.cells {
+            for cell in row.iter_mut() {
+                cell.ch = blank.ch;
+                cell.fg = blank.fg;
+                cell.bg = blank.bg;
+            }
         }
     }
 
-    pub fn resize(&mut self, width: usize, height: usize) {
-        if (self.width == width && self.height == height) {
+    pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
+        if self.cols == newcols && self.rows == newrows {
             return;
         }
 
-        let oldw = self.width;
-        let oldh = self.height;
-
-        let mut newbuf: Vec<Cell> = Vec::with_capacity(width * height);
-
-        let minw = if width < oldw { width } else { oldw };
-        let minh = if height < oldh { height } else { oldh };
-
-        for i in 0..minh {
-            newbuf[i * width] = self.cells[i * oldw];
+        if newrows > self.rows {
+            for row in &mut self.cells {
+                row.extend(iter::repeat(blank).take(newcols - self.cols));
+            }
+        } else {
+            for row in &mut self.cells {
+                row.truncate(newcols);
+            }
         }
-        self.cells = newbuf;
+
+        self.rows = newrows;
+        self.cols = newcols;
     }
 }
 
@@ -59,10 +61,18 @@ impl Cell {
             bg: bg,
         }
     }
+
+    pub fn blank_default() -> Cell {
+        Cell {
+            ch: b' ',
+            fg: Style::default(),
+            bg: Style::default(),
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct Style(Color, Attr);
+pub struct Style(pub Color, pub Attr);
 
 impl Style {
     pub fn default() -> Style {
@@ -88,10 +98,6 @@ pub enum Attr {
     Default = 0x0000,
     Bold = 0x0100,
     Underline = 0x0200,
-    BoldUnderline = 0x300,
     Reverse = 0x0400,
-    BoldReverse = 0x0500,
-    UnderlineReverse = 0x0600,
-    BoldUnderlineReverse = 0x0700,
 }
 

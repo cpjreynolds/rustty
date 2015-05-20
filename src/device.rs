@@ -28,10 +28,10 @@ impl Device {
 }
 
 impl Index<DFunction> for Device {
-    type Output = str;
+    type Output = [u8];
 
-    fn index(&self, index: DFunction) -> &str {
-        self.funcs[index as usize]
+    fn index(&self, index: DFunction) -> &[u8] {
+        self.funcs[index as usize].as_bytes()
     }
 }
 
@@ -39,7 +39,7 @@ pub enum DFunction {
     EnterCa,
     ExitCa,
     ShowCursor,
-    HideScreen,
+    HideCursor,
     ClearScreen,
     Sgr0,
     Underline,

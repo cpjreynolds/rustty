@@ -47,8 +47,8 @@ pub struct Terminal {
     frontbuf: CellBuffer,
     backbuf: CellBuffer,
     outbuf: Vec<u8>,
-    fgcolor: Color,
-    bgcolor: Color,
+    fg: Style,
+    bg: Style,
 }
 
 impl Terminal {
@@ -97,11 +97,16 @@ impl Terminal {
             frontbuf: CellBuffer::new(0, 0),
             backbuf: CellBuffer::new(0, 0),
             outbuf: Vec::with_capacity(32 * 1024),
-            fgcolor: Color::Default,
-            bgcolor: Color::Default,
+            fg: Style::default(),
+            bg: Style::default(),
         };
+        try!(terminal.outbuf.write_all(&terminal.device[DFunction::EnterCa]));
+        try!(terminal.outbuf.write_all(&terminal.device[DFunction::EnterKeypad]));
+        try!(terminal.outbuf.write_all(&terminal.device[DFunction::HideCursor]));
+        try!(terminal.send_clear(Style::default(), Style::default()));
 
         try!(terminal.update_size());
+        terminal.clear();
         Ok(terminal)
     }
 
@@ -120,6 +125,63 @@ impl Terminal {
         (self.width, self.height)
     }
 
+    pub fn clear(&mut self) {
+        self.backbuf.clear(Cell::blank(self.fg, self.bg));
+    }
+
+    pub fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), TtyError> {
+        try!(self.send_style(fg, bg));
+        try!(self.outbuf.write_all(&self.device[DFunction::ClearScreen]));
+        try!(self.flush());
+        self.outbuf.clear();
+        Ok(())
+    }
+
+    pub fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), TtyError> {
+        try!(self.outbuf.write_all(&self.device[DFunction::Sgr0]));
+        let Style(fgcol, fgattr) = fg;
+        let Style(bgcol, bgattr) = bg;
+
+        match fgattr {
+            Attr::Bold => try!(self.outbuf.write_all(&self.device[DFunction::Bold])),
+            Attr::Underline => try!(self.outbuf.write_all(&self.device[DFunction::Underline])),
+            Attr::Reverse => try!(self.outbuf.write_all(&self.device[DFunction::Reverse])),
+            _ => {},
+        }
+
+        match bgattr {
+            Attr::Bold => try!(self.outbuf.write_all(&self.device[DFunction::Blink])),
+            Attr::Underline => {},
+            Attr::Reverse => try!(self.outbuf.write_all(&self.device[DFunction::Reverse])),
+            _ => {},
+        }
+
+        if fgcol != Color::Default {
+            if bgcol != Color::Default {
+                try!(self.write_sgr(fgcol, bgcol))
+            } else {
+                try!(self.write_sgr_fg(fgcol))
+            }
+        } else if bgcol != Color::Default {
+            try!(self.write_sgr_bg(bgcol))
+        }
+        Ok(())
+    }
+
+    pub fn write_sgr_fg(&mut self, fgcol: Color) -> Result<(), TtyError> {
+        try!(write!(self.outbuf, "\x1b[3{}m", (fgcol as usize) - 1));
+        Ok(())
+    }
+
+    pub fn write_sgr_bg(&mut self, bgcol: Color) -> Result<(), TtyError> {
+        try!(write!(self.outbuf, "\x1b[4{}m", (bgcol as usize) - 1));
+        Ok(())
+    }
+
+    pub fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), TtyError> {
+        try!(write!(self.outbuf, "\x1b[3{};4{}m", (fgcol as usize) - 1, (bgcol as usize) - 1));
+        Ok(())
+    }
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
     /// Resizes the cellbuffer as well.
@@ -135,19 +197,28 @@ impl Terminal {
             },
             Err(e) => { return Err(TtyError::from_nix(e)) },
         }
-        self.backbuf.resize(self.width, self.height);
-        self.frontbuf.resize(self.width, self.height);
+        let blank = Cell::blank(self.fg, self.bg);
+        self.backbuf.resize(self.width, self.height, blank);
+        self.frontbuf.resize(self.width, self.height, blank);
         Ok(())
     }
 
-    pub fn clear(&mut self) {
-
+    pub fn flush(&mut self) -> Result<(), TtyError> {
+        try!(self.tty.write_all(&self.outbuf));
+        self.outbuf.clear();
+        Ok(())
     }
-
 }
 
 impl Drop for Terminal {
     fn drop(&mut self) {
+        self.outbuf.write_all(&self.device[DFunction::ShowCursor]).unwrap();
+        self.outbuf.write_all(&self.device[DFunction::Sgr0]).unwrap();
+        self.outbuf.write_all(&self.device[DFunction::ClearScreen]).unwrap();
+        self.outbuf.write_all(&self.device[DFunction::ExitCa]).unwrap();
+        self.outbuf.write_all(&self.device[DFunction::ExitKeypad]).unwrap();
+        self.outbuf.write_all(&self.device[DFunction::ExitMouse]).unwrap();
+        self.flush().unwrap();
         termios::tcsetattr(self.ttyfd, SetArg::TCSAFLUSH, &self.orig_tios).unwrap();
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
     }
