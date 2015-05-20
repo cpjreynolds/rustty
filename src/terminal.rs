@@ -18,8 +18,10 @@ use Device;
 use DFunction;
 use TtyError;
 use CellBuffer;
+use Cell;
 use Color;
-
+use Style;
+use Attr;
 
 /// Set to true by the sigwinch handler. Reset to false when handled elsewhere.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -39,8 +41,8 @@ pub struct Terminal {
     tios: termios::Termios,
     tty: File,
     ttyfd: RawFd,
-    width: u16,
-    height: u16,
+    width: usize,
+    height: usize,
     device: &'static Device,
     frontbuf: CellBuffer,
     backbuf: CellBuffer,
@@ -82,8 +84,8 @@ impl Terminal {
         tios.c_cflag = tios.c_cflag | CS8;
         tios.c_cc[VMIN] = 0;
         tios.c_cc[VTIME] = 0;
-
         termios::tcsetattr(ttyfd, SetArg::TCSAFLUSH, &tios).unwrap();
+
         let mut terminal = Terminal {
             orig_tios: orig_tios,
             tios: tios,
@@ -94,48 +96,52 @@ impl Terminal {
             device: device,
             frontbuf: CellBuffer::new(0, 0),
             backbuf: CellBuffer::new(0, 0),
-            outbuf: Vec::new(),
+            outbuf: Vec::with_capacity(32 * 1024),
             fgcolor: Color::Default,
             bgcolor: Color::Default,
         };
+
         try!(terminal.update_size());
         Ok(terminal)
     }
 
     /// Returns the width of the terminal.
-    pub fn width(&self) -> u16 {
+    pub fn width(&self) -> usize {
         self.width
     }
 
     /// Returns the height of the terminal.
-    pub fn height(&self) -> u16 {
+    pub fn height(&self) -> usize {
         self.height
     }
 
     /// Returns the size of the terminal as (x, y).
-    pub fn size(&self) -> (u16, u16) {
+    pub fn size(&self) -> (usize, usize) {
         (self.width, self.height)
     }
 
+
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
     /// Resizes the cellbuffer as well.
-    fn update_size(&mut self) -> Result<(), TtyError> {
+    pub fn update_size(&mut self) -> Result<(), TtyError> {
         let mut ws = WindowSize::new();
         let status = unsafe {
             ioctl::read_into::<WindowSize>(self.ttyfd, TIOCGWINSZ, &mut ws)
         };
         match status {
             Ok(..) => {
-                self.width = ws.ws_col;
-                self.height = ws.ws_row;
+                self.width = ws.ws_col as usize;
+                self.height = ws.ws_row as usize;
             },
             Err(e) => { return Err(TtyError::from_nix(e)) },
         }
+        self.backbuf.resize(self.width, self.height);
+        self.frontbuf.resize(self.width, self.height);
         Ok(())
     }
 
     pub fn clear(&mut self) {
-        write!(self.tty, "{}", &self.device[DFunction::ClearScreen]).unwrap();
+
     }
 
 }

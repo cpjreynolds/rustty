@@ -8,46 +8,69 @@ pub struct CellBuffer {
 }
 
 impl CellBuffer {
-    pub fn new(x: usize, y: usize) -> CellBuffer {
+    pub fn new(width: usize, height: usize) -> CellBuffer {
         CellBuffer {
-            width: x,
-            height: y,
-            cells: Vec::with_capacity(x * y),
+            width: width,
+            height: height,
+            cells: Vec::with_capacity(width * height),
         }
+    }
+
+    pub fn clear(&mut self, new: Cell) {
+        for cell in self.cells.iter_mut() {
+            cell.ch = new.ch;
+            cell.fg = new.fg;
+            cell.bg = new.bg;
+        }
+    }
+
+    pub fn resize(&mut self, width: usize, height: usize) {
+        if (self.width == width && self.height == height) {
+            return;
+        }
+
+        let oldw = self.width;
+        let oldh = self.height;
+
+        let mut newbuf: Vec<Cell> = Vec::with_capacity(width * height);
+
+        let minw = if width < oldw { width } else { oldw };
+        let minh = if height < oldh { height } else { oldh };
+
+        for i in 0..minh {
+            newbuf[i * width] = self.cells[i * oldw];
+        }
+        self.cells = newbuf;
     }
 }
 
-// Using until resize hits stable
-pub trait Resizable<T> {
-    fn resize(&mut self, new_len: usize, value: T);
-}
-
-impl Resizable<Cell> for Vec<Cell> {
-    fn resize(&mut self, new_len: usize, value: Cell) {
-        let len = self.len();
-
-        if new_len > len {
-            self.extend(repeat(value).take(new_len - len));
-        } else {
-            self.truncate(new_len);
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Cell {
     ch: u8,
     fg: Style,
     bg: Style,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-pub struct Style {
-    color: Color,
-    attribute: Attribute,
+impl Cell {
+    pub fn blank(fg: Style, bg: Style) -> Cell {
+        Cell {
+            ch: b' ',
+            fg: fg,
+            bg: bg,
+        }
+    }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct Style(Color, Attr);
+
+impl Style {
+    pub fn default() -> Style {
+        Style(Color::Default, Attr::Default)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Color {
     Default,
     Black,
@@ -60,8 +83,8 @@ pub enum Color {
     White,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-pub enum Attribute {
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Attr {
     Default = 0x0000,
     Bold = 0x0100,
     Underline = 0x0200,
