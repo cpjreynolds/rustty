@@ -1,3 +1,5 @@
+#![doc(html_root_url = "http://cpjreynolds.github.io/rustty/rustty/index.html")]
+
 //! Terminal UI library.
 
 #[macro_use]
