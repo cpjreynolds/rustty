@@ -8,5 +8,5 @@ extern crate nix;
 pub mod core;
 pub mod util;
 
-pub use core::{Terminal, Cell, Color, Style, Attr};
-pub use util::Error;
+pub use self::core::{Terminal, Cell, Color, Style, Attr};
+pub use self::util::Error;
