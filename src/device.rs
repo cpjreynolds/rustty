@@ -27,15 +27,15 @@ impl Device {
     }
 }
 
-impl Index<DFunction> for Device {
+impl Index<DevFunc> for Device {
     type Output = [u8];
 
-    fn index(&self, index: DFunction) -> &[u8] {
+    fn index(&self, index: DevFunc) -> &[u8] {
         self.funcs[index as usize].as_bytes()
     }
 }
 
-pub enum DFunction {
+pub enum DevFunc {
     EnterCa,
     ExitCa,
     ShowCursor,
@@ -98,5 +98,4 @@ const DEVICES: &'static [Device] = &[
         ],
     },
 ];
-
 

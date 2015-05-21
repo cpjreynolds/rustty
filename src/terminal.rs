@@ -15,9 +15,10 @@ use nix::sys::signal::signal::SIGWINCH;
 use nix::sys::ioctl;
 
 use Device;
-use DFunction;
+use DevFunc;
 use TtyError;
 use CellBuffer;
+use ByteBuffer;
 use Cell;
 use Color;
 use Style;
@@ -36,36 +37,56 @@ const TIOCGWINSZ: u64 = 0x40087468;
 #[cfg(target_os="linux")]
 const TIOCGWINSZ: u64 = 0x00005413;
 
+macro_rules! is_cursor_hidden {
+    ( $x:expr ) => {
+        $x == Cursor::Invalid
+    };
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Cursor {
+    Valid(usize, usize),
+    Invalid,
+}
+
 pub struct Terminal {
     orig_tios: termios::Termios,
     tios: termios::Termios,
     tty: File,
-    ttyfd: RawFd,
-    width: usize,
-    height: usize,
+    rawtty: RawFd,
+    cols: usize,
+    rows: usize,
     device: &'static Device,
-    frontbuf: CellBuffer,
-    backbuf: CellBuffer,
-    outbuf: Vec<u8>,
-    fg: Style,
-    bg: Style,
+    backbuffer: CellBuffer,
+    frontbuffer: CellBuffer,
+    outbuffer: ByteBuffer,
+    foreground: Style,
+    background: Style,
+    cursor: Cursor,
+    cursor_last: Cursor,
 }
 
 impl Terminal {
     pub fn new() -> Result<Terminal, TtyError> {
+        // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(TtyError::new("Rustty already initialized"))
         }
 
+        // Return the device object for the user's terminal.
         let device = try!(Device::new());
 
+        // Open the terminal file for the controlling process.
         let tty = try!(OpenOptions::new()
             .write(true)
             .read(true)
             .open("/dev/tty"));
 
-        let ttyfd = tty.as_raw_fd();
+        // Get the raw file descriptor for the terminal file to use with system calls.
+        let rawtty = tty.as_raw_fd();
 
+        // Set up the signal handler for SIGWINCH, which will notify us when the window size has
+        // changed; it does this by setting SIGWINCH_STATUS to 'true'.
         let sa_winch = signal::SigAction::new(sigwinch_handler, SockFlag::empty(), SigSet::empty());
         unsafe {
             if let Err(e) = signal::sigaction(SIGWINCH, &sa_winch) {
@@ -73,9 +94,13 @@ impl Terminal {
             }
         }
 
-        let orig_tios = termios::tcgetattr(ttyfd).unwrap();
+        // Get the original state of the terminal so we can restore it on drop.
+        let orig_tios = termios::tcgetattr(rawtty).unwrap();
 
+        // Make a mutable clone of the terminal state so we can modify parameters.
         let mut tios = orig_tios.clone();
+
+        // Set required terminal parameters.
         tios.c_iflag = tios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP |
                                         INLCR | IGNCR | ICRNL | IXON);
         tios.c_oflag = tios.c_oflag & !OPOST;
@@ -84,76 +109,176 @@ impl Terminal {
         tios.c_cflag = tios.c_cflag | CS8;
         tios.c_cc[VMIN] = 0;
         tios.c_cc[VTIME] = 0;
-        termios::tcsetattr(ttyfd, SetArg::TCSAFLUSH, &tios).unwrap();
 
+        // Make the system call to change terminal parameters. Panic if this fails.
+        // FIXME: Better error handling.
+        termios::tcsetattr(rawtty, SetArg::TCSAFLUSH, &tios).unwrap();
+
+        // Create the terminal object to hold all of our required state.
         let mut terminal = Terminal {
             orig_tios: orig_tios,
             tios: tios,
             tty: tty,
-            ttyfd: ttyfd,
-            width: 0,
-            height: 0,
+            rawtty: rawtty,
+            cols: 0,
+            rows: 0,
             device: device,
-            frontbuf: CellBuffer::new(0, 0),
-            backbuf: CellBuffer::new(0, 0),
-            outbuf: Vec::with_capacity(32 * 1024),
-            fg: Style::default(),
-            bg: Style::default(),
+            backbuffer: CellBuffer::new(0, 0),
+            frontbuffer: CellBuffer::new(0, 0),
+            outbuffer: ByteBuffer::with_capacity(32 * 1024),
+            foreground: Style::default(),
+            background: Style::default(),
+            cursor: Cursor::Invalid,
+            cursor_last: Cursor::Invalid,
         };
-        try!(terminal.outbuf.write_all(&terminal.device[DFunction::EnterCa]));
-        try!(terminal.outbuf.write_all(&terminal.device[DFunction::EnterKeypad]));
-        try!(terminal.outbuf.write_all(&terminal.device[DFunction::HideCursor]));
-        try!(terminal.send_clear(Style::default(), Style::default()));
 
+        // Switch to alternate screen buffer. Writes the control code to the output buffer.
+        try!(terminal.outbuffer.write_all(&terminal.device[DevFunc::EnterCa]));
+
+        // Enter keypad. Writes the control code to the output buffer.
+        try!(terminal.outbuffer.write_all(&terminal.device[DevFunc::EnterKeypad]));
+
+        // Hide cursor. Writes the control code to the output buffer.
+        try!(terminal.outbuffer.write_all(&terminal.device[DevFunc::HideCursor]));
+
+        // Clear screen. Writes the control code to the output buffer.
+        try!(terminal.send_clear(Cell::blank_default()));
+
+        // Updates the terminal object's size. Doesn't resize anything.
         try!(terminal.update_size());
-        try!(terminal.clear());
+
+        // Resize the backbuffer to reflect the updated size. Use the default cell for
+        // blank space.
+        try!(terminal.resize(Cell::blank_default()));
+
+        // Clear the back buffer with the default cell.
+        terminal.clear_backbuffer(Cell::blank_default());
+        terminal.clear_frontbuffer(Cell::blank_default());
+
+        // Return the initialized terminal object.
         Ok(terminal)
     }
 
-    /// Returns the width of the terminal.
-    pub fn width(&self) -> usize {
-        self.width
-    }
+    pub fn swap(&mut self) -> Result<(), TtyError> {
+        self.cursor_last = Cursor::Invalid;
 
-    /// Returns the height of the terminal.
-    pub fn height(&self) -> usize {
-        self.height
-    }
+        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
+            try!(self.update_size());
+            try!(self.resize(Cell::blank_default()));
+        }
 
-    /// Returns the size of the terminal as (x, y).
-    pub fn size(&self) -> (usize, usize) {
-        (self.width, self.height)
-    }
+        for y in 0..self.rows() {
+            for x in 0..self.cols() {
+                if self.backbuffer.cells[y][x] == self.frontbuffer.cells[y][x] {
+                    continue;
+                } else {
+                    self.frontbuffer.cells[y][x] = self.backbuffer.cells[y][x];
+                }
+                let Cell { ch, fg, bg } = self.backbuffer.cells[y][x];
+                try!(self.send_style(fg, bg));
+                try!(self.send_char(x, y, ch));
+            }
+        }
 
-    pub fn clear(&mut self) -> Result<(), TtyError> {
-        try!(self.update_size());
-        self.backbuf.clear(Cell::blank(self.fg, self.bg));
-        Ok(())
-    }
-
-    pub fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), TtyError> {
-        try!(self.send_style(fg, bg));
-        try!(self.outbuf.write_all(&self.device[DFunction::ClearScreen]));
+        if self.cursor != Cursor::Invalid {
+            try!(self.write_current_cursor());
+        }
         try!(self.flush());
         Ok(())
     }
 
-    pub fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), TtyError> {
-        try!(self.outbuf.write_all(&self.device[DFunction::Sgr0]));
+    /// Returns the width of the terminal.
+    pub fn cols(&self) -> usize {
+        self.cols
+    }
+
+    /// Returns the height of the terminal.
+    pub fn rows(&self) -> usize {
+        self.rows
+    }
+
+    /// Returns the size of the terminal as (cols, rows).
+    pub fn size(&self) -> (usize, usize) {
+        (self.cols, self.rows)
+    }
+
+    /// Clears the internal back buffer with the provided cell.
+    pub fn clear(&mut self, cell: Cell) {
+        self.clear_backbuffer(cell);
+    }
+
+    /// Clears the internal back buffer with the provided cell.
+    fn clear_backbuffer(&mut self, cell: Cell) {
+        self.backbuffer.clear(Cell::blank(cell.fg, cell.bg));
+    }
+
+    fn clear_frontbuffer(&mut self, cell: Cell) {
+        self.frontbuffer.clear(Cell::blank(cell.fg, cell.bg));
+    }
+
+    /// Sets the cursor position.
+    fn set_cursor(&mut self, c: Cursor) -> Result<(), TtyError> {
+        if self.cursor == Cursor::Invalid && c != Cursor::Invalid {
+            try!(self.outbuffer.write_all(&self.device[DevFunc::ShowCursor]));
+        }
+
+        if self.cursor != Cursor::Invalid && c == Cursor::Invalid {
+            try!(self.outbuffer.write_all(&self.device[DevFunc::HideCursor]));
+        }
+
+        self.cursor = c;
+
+        if self.cursor == Cursor::Invalid {
+            try!(self.write_cursor(c));
+        }
+        Ok(())
+    }
+
+    fn write_cursor(&mut self, c: Cursor) -> Result<(), TtyError> {
+        if let Cursor::Valid(cx, cy) = c {
+            try!(write!(self.outbuffer, "\x1b[{};{}H", cy+1, cx+1));
+        } else {
+            try!(write!(self.outbuffer, "\x1b[{};{}H", 0, 0));
+        }
+        Ok(())
+    }
+
+    fn write_current_cursor(&mut self) -> Result<(), TtyError> {
+        if let Cursor::Valid(cx, cy) = self.cursor {
+            try!(write!(self.outbuffer, "\x1b[{};{}H", cy+1, cx+1));
+        } else {
+            try!(write!(self.outbuffer, "\x1b[{};{}H", 0, 0));
+        }
+        Ok(())
+    }
+
+    fn send_clear(&mut self, cell: Cell) -> Result<(), TtyError> {
+        try!(self.send_style(cell.fg, cell.bg));
+        try!(self.outbuffer.write_all(&self.device[DevFunc::ClearScreen]));
+        if self.cursor != Cursor::Invalid {
+            try!(self.write_current_cursor());
+        }
+        try!(self.flush());
+        self.cursor_last = Cursor::Invalid;
+        Ok(())
+    }
+
+    fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), TtyError> {
+        try!(self.outbuffer.write_all(&self.device[DevFunc::Sgr0]));
         let Style(fgcol, fgattr) = fg;
         let Style(bgcol, bgattr) = bg;
 
         match fgattr {
-            Attr::Bold => try!(self.outbuf.write_all(&self.device[DFunction::Bold])),
-            Attr::Underline => try!(self.outbuf.write_all(&self.device[DFunction::Underline])),
-            Attr::Reverse => try!(self.outbuf.write_all(&self.device[DFunction::Reverse])),
+            Attr::Bold => try!(self.outbuffer.write_all(&self.device[DevFunc::Bold])),
+            Attr::Underline => try!(self.outbuffer.write_all(&self.device[DevFunc::Underline])),
+            Attr::Reverse => try!(self.outbuffer.write_all(&self.device[DevFunc::Reverse])),
             _ => {},
         }
 
         match bgattr {
-            Attr::Bold => try!(self.outbuf.write_all(&self.device[DFunction::Blink])),
+            Attr::Bold => try!(self.outbuffer.write_all(&self.device[DevFunc::Blink])),
             Attr::Underline => {},
-            Attr::Reverse => try!(self.outbuf.write_all(&self.device[DFunction::Reverse])),
+            Attr::Reverse => try!(self.outbuffer.write_all(&self.device[DevFunc::Reverse])),
             _ => {},
         }
 
@@ -169,60 +294,80 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn write_sgr_fg(&mut self, fgcol: Color) -> Result<(), TtyError> {
-        try!(write!(self.outbuf, "\x1b[3{}m", (fgcol as usize) - 1));
+    pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) {
+        if x >= self.backbuffer.cols() {
+            return;
+        }
+        if y >= self.backbuffer.rows() {
+            return;
+        }
+        self.backbuffer.cells[y][x] = cell;
+    }
+
+    fn write_sgr_fg(&mut self, fgcol: Color) -> Result<(), TtyError> {
+        try!(write!(self.outbuffer, "\x1b[3{}m", (fgcol as usize) - 1));
         Ok(())
     }
 
-    pub fn write_sgr_bg(&mut self, bgcol: Color) -> Result<(), TtyError> {
-        try!(write!(self.outbuf, "\x1b[4{}m", (bgcol as usize) - 1));
+    fn write_sgr_bg(&mut self, bgcol: Color) -> Result<(), TtyError> {
+        try!(write!(self.outbuffer, "\x1b[4{}m", (bgcol as usize) - 1));
         Ok(())
     }
 
-    pub fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), TtyError> {
-        try!(write!(self.outbuf, "\x1b[3{};4{}m", (fgcol as usize) - 1, (bgcol as usize) - 1));
+    fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), TtyError> {
+        try!(write!(self.outbuffer, "\x1b[3{};4{}m", (fgcol as usize) - 1, (bgcol as usize) - 1));
         Ok(())
     }
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
-    /// Resizes the cellbuffer as well.
-    pub fn update_size(&mut self) -> Result<(), TtyError> {
+    /// Does not resize the buffers or clear them, just sets the size.
+    fn update_size(&mut self) -> Result<(), TtyError> {
         let mut ws = WindowSize::new();
         let status = unsafe {
-            ioctl::read_into::<WindowSize>(self.ttyfd, TIOCGWINSZ, &mut ws)
+            ioctl::read_into::<WindowSize>(self.rawtty, TIOCGWINSZ, &mut ws)
         };
         match status {
             Ok(..) => {
-                self.width = ws.ws_col as usize;
-                self.height = ws.ws_row as usize;
+                self.cols = ws.ws_col as usize;
+                self.rows = ws.ws_row as usize;
             },
             Err(e) => { return Err(TtyError::from_nix(e)) },
         }
-        let blank = Cell::blank(self.fg, self.bg);
-        self.backbuf.resize(self.width, self.height, blank);
-        self.frontbuf.resize(self.width, self.height, blank);
-        try!(self.clear());
-        try!(self.send_clear(Style::default(), Style::default()));
         Ok(())
     }
 
-    pub fn flush(&mut self) -> Result<(), TtyError> {
-        try!(self.tty.write_all(&self.outbuf));
-        self.outbuf.clear();
+    fn send_char(&mut self, x: usize, y: usize, ch: char) -> Result<(), TtyError> {
+        try!(self.write_cursor(Cursor::Valid(x, y)));
+        self.cursor_last = Cursor::Valid(x, y);
+        try!(write!(self.outbuffer, "{}", ch));
+        Ok(())
+    }
+
+    fn resize(&mut self, blank: Cell) -> Result<(), TtyError> {
+        self.backbuffer.resize(self.cols, self.rows, blank);
+        self.frontbuffer.resize(self.cols, self.rows, blank);
+        try!(self.send_clear(Cell::blank_default()));
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), TtyError> {
+        try!(self.tty.write_all(&self.outbuffer));
+        self.outbuffer.clear();
         Ok(())
     }
 }
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        self.outbuf.write_all(&self.device[DFunction::ShowCursor]).unwrap();
-        self.outbuf.write_all(&self.device[DFunction::Sgr0]).unwrap();
-        self.outbuf.write_all(&self.device[DFunction::ClearScreen]).unwrap();
-        self.outbuf.write_all(&self.device[DFunction::ExitCa]).unwrap();
-        self.outbuf.write_all(&self.device[DFunction::ExitKeypad]).unwrap();
-        self.outbuf.write_all(&self.device[DFunction::ExitMouse]).unwrap();
+        self.outbuffer.write_all(&self.device[DevFunc::ShowCursor]).unwrap();
+        self.outbuffer.write_all(&self.device[DevFunc::Sgr0]).unwrap();
+        self.outbuffer.write_all(&self.device[DevFunc::ClearScreen]).unwrap();
+        self.outbuffer.write_all(&self.device[DevFunc::ExitCa]).unwrap();
+        self.outbuffer.write_all(&self.device[DevFunc::ExitKeypad]).unwrap();
+        self.outbuffer.write_all(&self.device[DevFunc::ExitMouse]).unwrap();
         self.flush().unwrap();
-        termios::tcsetattr(self.ttyfd, SetArg::TCSAFLUSH, &self.orig_tios).unwrap();
+        termios::tcsetattr(self.rawtty, SetArg::TCSAFLUSH, &self.orig_tios).unwrap();
+        SIGWINCH_STATUS.store(false, Ordering::SeqCst);
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
     }
 }
