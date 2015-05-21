@@ -5,8 +5,8 @@ extern crate bitflags;
 extern crate libc;
 extern crate nix;
 
-mod core;
-mod util;
+pub mod core;
+pub mod util;
 
 pub use core::{Terminal, Cell, Color, Style, Attr};
 pub use util::Error;
