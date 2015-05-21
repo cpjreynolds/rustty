@@ -34,6 +34,7 @@ const TIOCGWINSZ: u64 = 0x40087468;
 const TIOCGWINSZ: u64 = 0x00005413;
 
 
+/// Terminal object.
 pub struct Terminal {
     orig_tios: termios::Termios,
     tios: termios::Termios,
