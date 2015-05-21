@@ -1,10 +1,11 @@
 use std::iter;
+use std::ops::{Index, IndexMut};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct CellBuffer {
     cols: usize,
     rows: usize,
-    pub cells: Vec<Vec<Cell>>,
+    cells: Vec<Vec<Cell>>,
 }
 
 impl CellBuffer {
@@ -12,7 +13,31 @@ impl CellBuffer {
         CellBuffer {
             cols: cols,
             rows: rows,
-            cells: vec![vec![Cell::blank_default(); cols]; rows],
+            cells: vec![vec![Cell::default(); cols]; rows],
+        }
+    }
+
+    pub fn with_char(cols: usize, rows: usize, ch: char) -> CellBuffer {
+        CellBuffer {
+            cols: cols,
+            rows: rows,
+            cells: vec![vec![Cell::with_char(ch); cols]; rows],
+        }
+    }
+
+    pub fn with_styles(cols: usize, rows: usize, fg: Style, bg: Style) -> CellBuffer {
+        CellBuffer {
+            cols: cols,
+            rows: rows,
+            cells: vec![vec![Cell::with_styles(fg, bg); cols]; rows],
+        }
+    }
+
+    pub fn with_cell(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
+        CellBuffer {
+            cols: cols,
+            rows: rows,
+            cells: vec![vec![cell; cols]; rows],
         }
     }
 
@@ -22,6 +47,10 @@ impl CellBuffer {
 
     pub fn rows(&self) -> usize {
         self.rows
+    }
+
+    pub fn size(&self) -> (usize, usize) {
+        (self.cols, self.rows)
     }
 
     pub fn clear(&mut self, blank: Cell) {
@@ -68,6 +97,20 @@ impl CellBuffer {
     }
 }
 
+impl Index<usize> for CellBuffer {
+    type Output = Vec<Cell>;
+
+    fn index(&self, index: usize) -> &Vec<Cell> {
+        &self.cells[index]
+    }
+}
+
+impl IndexMut<usize> for CellBuffer {
+    fn index_mut(&mut self, index: usize) -> &mut Vec<Cell> {
+        &mut self.cells[index]
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub ch: char,
@@ -84,7 +127,7 @@ impl Cell {
         }
     }
 
-    pub fn char_default(ch: char) -> Cell {
+    pub fn with_char(ch: char) -> Cell {
         Cell {
             ch: ch,
             fg: Style::default(),
@@ -92,7 +135,7 @@ impl Cell {
         }
     }
 
-    pub fn blank(fg: Style, bg: Style) -> Cell {
+    pub fn with_styles(fg: Style, bg: Style) -> Cell {
         Cell {
             ch: ' ',
             fg: fg,
@@ -100,7 +143,7 @@ impl Cell {
         }
     }
 
-    pub fn blank_default() -> Cell {
+    pub fn default() -> Cell {
         Cell {
             ch: ' ',
             fg: Style::default(),
@@ -116,26 +159,34 @@ impl Style {
     pub fn default() -> Style {
         Style(Color::Default, Attr::Default)
     }
+
+    pub fn with_color(c: Color) -> Style {
+        Style(c, Attr::Default)
+    }
+
+    pub fn with_attr(a: Attr) -> Style {
+        Style(Color::Default, a)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Color {
-    Default = 0x0000,
-    Black = 0x0001,
-    Red = 0x0002,
-    Green = 0x0003,
-    Yellow = 0x0004,
-    Blue = 0x0005,
-    Magenta = 0x0006,
-    Cyan = 0x0007,
-    White = 0x0008,
+    Black = 0x0000,
+    Red = 0x0001,
+    Green = 0x0002,
+    Yellow = 0x0003,
+    Blue = 0x0004,
+    Magenta = 0x0005,
+    Cyan = 0x0006,
+    White = 0x0007,
+    Default,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Attr {
-    Default = 0x0000,
-    Bold = 0x0100,
-    Underline = 0x0200,
-    Reverse = 0x0400,
+    Default,
+    Bold,
+    Underline,
+    Reverse,
 }
 

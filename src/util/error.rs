@@ -1,51 +1,47 @@
 use std::fmt;
 use std::convert::From;
 use std::io;
-use std::error::Error;
+use std::error::Error as StdError;
 
 use nix;
 
 #[derive(Debug)]
-pub struct TtyError {
+pub struct Error {
     description: &'static str,
-    cause: Option<Box<Error>>,
+    cause: Option<Box<StdError>>,
 }
 
-impl TtyError {
-    pub fn new(desc: &'static str) -> TtyError {
-        TtyError {
+impl Error {
+    pub fn new(desc: &'static str) -> Error {
+        Error {
             description: desc,
             cause: None,
         }
     }
-
-    pub fn from_nix(e: nix::Error) -> TtyError {
-            TtyError::new(e.errno().desc())
-    }
 }
 
-impl Error for TtyError {
+impl StdError for Error {
     fn description(&self) -> &str {
         self.description
     }
 }
 
-impl From<nix::Error> for TtyError {
+impl From<nix::Error> for Error {
     fn from(err: nix::Error) -> Self {
-        TtyError::new(err.errno().desc())
+        Error::new(err.errno().desc())
     }
 }
 
-impl From<io::Error> for TtyError {
+impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        TtyError {
+        Error {
             description: "internal io error",
             cause: Some(Box::new(err)),
         }
     }
 }
 
-impl fmt::Display for TtyError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.description())
     }

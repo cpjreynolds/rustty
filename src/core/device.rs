@@ -1,7 +1,7 @@
 use std::env;
 use std::ops::Index;
 
-use TtyError;
+use util::Error;
 
 pub struct Device {
     name: &'static str,
@@ -10,15 +10,15 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new() -> Result<&'static Device, TtyError> {
+    pub fn new() -> Result<&'static Device, Error> {
         if let Ok(dname) = env::var("TERM") {
             if let Some(dev) = DEVICES.iter().find(|d| { dname.contains(d.name) }) {
                 Ok(dev)
             } else {
-                Err(TtyError::new("Unsupported terminal"))
+                Err(Error::new("Unsupported terminal"))
             }
         } else {
-            Err(TtyError::new("TERM not set"))
+            Err(Error::new("TERM not set"))
         }
     }
 
@@ -28,10 +28,10 @@ impl Device {
 }
 
 impl Index<DevFunc> for Device {
-    type Output = [u8];
+    type Output = str;
 
-    fn index(&self, index: DevFunc) -> &[u8] {
-        self.funcs[index as usize].as_bytes()
+    fn index(&self, index: DevFunc) -> &str {
+        self.funcs[index as usize]
     }
 }
 
