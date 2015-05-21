@@ -8,10 +8,15 @@ repository = "https://github.com/cpjreynolds/rustty"
 readme = "README.md"
 license = "MIT"
 
+[lib]
+name = "rustty"
+path = "src/lib.rs"
+
 [dependencies]
 libc = "*"
 bitflags = "*"
 time = "*"
+nix = "*"
 
-[dependencies.nix]
-git = "https://github.com/carllerche/nix-rust.git"
+#[dependencies.nix]
+#git = "https://github.com/carllerche/nix-rust.git"
