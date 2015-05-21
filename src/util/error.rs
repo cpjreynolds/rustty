@@ -1,3 +1,5 @@
+//! Errors.
+
 use std::fmt;
 use std::convert::From;
 use std::io;

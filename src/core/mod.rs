@@ -1,3 +1,5 @@
+//! Core module
+
 pub mod terminal;
 pub mod device;
 pub mod cellbuffer;
