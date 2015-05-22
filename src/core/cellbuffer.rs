@@ -74,8 +74,8 @@ impl CellBuffer {
                     col.extend(iter::repeat(blank).take(newrows - self.rows));
                 }
             } else {
-                for row in &mut self.cells {
-                    row.truncate(newrows);
+                for col in &mut self.cells {
+                    col.truncate(newrows);
                 }
             }
             self.cells.extend(iter::repeat(vec![blank; newrows]).take(newcols - self.cols));
@@ -92,8 +92,8 @@ impl CellBuffer {
             self.cells.truncate(newcols);
         }
 
-        self.rows = newrows;
         self.cols = newcols;
+        self.rows = newrows;
     }
 }
 

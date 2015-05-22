@@ -147,15 +147,7 @@ impl Terminal {
         // Hide cursor. Writes the control code to the output buffer.
         try!(write!(terminal.outbuffer, "{}", &terminal.device[DevFunc::HideCursor]));
 
-        // Clear screen. Writes the control code to the output buffer.
-        try!(terminal.send_clear(cell.fg(), cell.bg()));
-
-        // Updates the terminal object's size. Doesn't resize anything.
-        try!(terminal.update_size());
-
-        // Resize the backbuffer to reflect the updated size. Use the default cell for
-        // blank space.
-        try!(terminal.resize());
+        try!(terminal.resize_with_cell(cell));
 
         // Return the initialized terminal object.
         Ok(terminal)
@@ -163,14 +155,13 @@ impl Terminal {
 
     /// Send the current backbuffer to be displayed.
     pub fn swap_buffers(&mut self) -> Result<(), Error> {
-        // Invalidate the last cursor position.
-        self.cursor_last = Cursor::Invalid;
-
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.update_size());
             try!(self.resize());
         }
+
+        // Invalidate the last cursor position.
+        self.cursor_last = Cursor::Invalid;
 
         for x in 0..self.cols() {
             for y in 0..self.rows() {
@@ -236,7 +227,6 @@ impl Terminal {
     /// none.
     pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.update_size());
             try!(self.resize());
             return Ok(Some((self.cols, self.rows)));
         }
@@ -351,23 +341,18 @@ impl Terminal {
         Ok(())
     }
 
+    fn resize(&mut self) -> Result<(), Error> {
+        self.resize_with_cell(Cell::default())
+    }
+
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
-    /// Does not resize the buffers or clear them, just sets the size.
-    fn update_size(&mut self) -> Result<(), Error> {
+    fn resize_with_cell(&mut self, blank: Cell) -> Result<(), Error> {
         let mut ws = WindowSize::new();
         try!(unsafe {
             ioctl::read_into::<WindowSize>(self.rawtty, TIOCGWINSZ, &mut ws)
         });
         self.cols = ws.ws_col as usize;
         self.rows = ws.ws_row as usize;
-        Ok(())
-    }
-
-    fn resize(&mut self) -> Result<(), Error> {
-        self.resize_with_cell(Cell::default())
-    }
-
-    fn resize_with_cell(&mut self, blank: Cell) -> Result<(), Error> {
         self.backbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.resize(self.cols, self.rows, blank);
         try!(self.send_clear(blank.fg(), blank.bg()));
