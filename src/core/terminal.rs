@@ -334,8 +334,12 @@ impl Terminal {
     }
 
     fn send_char(&mut self, cursor: Cursor, ch: char) -> Result<(), Error> {
-        if !self.cursor_last.is_next(cursor) {
-            try!(self.send_cursor(cursor));
+        if let Cursor::Valid(cx, cy) = cursor {
+            if let Cursor::Valid(lx, ly) = self.cursor_last {
+                if (cx, cy) != (lx + 1, ly) {
+                    try!(self.send_cursor(cursor));
+                }
+            }
         }
         self.cursor_last = cursor;
         try!(write!(self.outbuffer, "{}", ch));
