@@ -164,6 +164,9 @@ impl Terminal {
         self.cursor_last = Cursor::Invalid;
 
         for x in 0..self.cols() {
+            if self.backbuffer[x] == self.frontbuffer[x] {
+                continue; // Redundant draw checking.
+            }
             for y in 0..self.rows() {
                 if self.backbuffer[x][y] == self.frontbuffer[x][y] {
                     continue; // Don't make rendundant draws.
