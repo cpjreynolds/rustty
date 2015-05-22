@@ -170,7 +170,7 @@ impl Terminal {
                 }
                 let cell = self.backbuffer[x][y];
                 try!(self.send_style(cell.fg(), cell.bg()));
-                try!(self.send_char(x, y, cell.ch()));
+                try!(self.send_char(Cursor::Valid(x, y), cell.ch()));
             }
         }
 
@@ -274,42 +274,36 @@ impl Terminal {
     }
 
     fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
-        try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Sgr0]));
+        if fg != self.last_fg || bg != self.last_bg {
+            try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Sgr0]));
 
-        match fg.attr() {
-            Attr::Bold => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Bold])),
-            Attr::Underline => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Underline])),
-            Attr::Reverse => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Reverse])),
-            _ => {},
-        }
-
-        match bg.attr() {
-            Attr::Bold => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Blink])),
-            Attr::Underline => {},
-            Attr::Reverse => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Reverse])),
-            _ => {},
-        }
-
-        if fg.color() != Color::Default {
-            if bg.color() != Color::Default {
-                try!(self.write_sgr(fg.color(), bg.color()))
-            } else {
-                try!(self.write_sgr_fg(fg.color()))
+            match fg.attr() {
+                Attr::Bold => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Bold])),
+                Attr::Underline => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Underline])),
+                Attr::Reverse => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Reverse])),
+                _ => {},
             }
-        } else if bg.color() != Color::Default {
-            try!(self.write_sgr_bg(bg.color()))
+
+            match bg.attr() {
+                Attr::Bold => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Blink])),
+                Attr::Underline => {},
+                Attr::Reverse => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Reverse])),
+                _ => {},
+            }
+
+            if fg.color() != Color::Default {
+                if bg.color() != Color::Default {
+                    try!(self.write_sgr(fg.color(), bg.color()))
+                } else {
+                    try!(self.write_sgr_fg(fg.color()))
+                }
+            } else if bg.color() != Color::Default {
+                try!(self.write_sgr_bg(bg.color()))
+            }
+            self.last_fg = fg;
+            self.last_bg = bg;
         }
         Ok(())
-    }
-
-    pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) {
-        if x >= self.backbuffer.cols() {
-            return;
-        }
-        if y >= self.backbuffer.rows() {
-            return;
-        }
-        self.backbuffer[x][y] = cell;
     }
 
     fn write_sgr_fg(&mut self, fgcol: Color) -> Result<(), Error> {
@@ -339,9 +333,11 @@ impl Terminal {
         Ok(())
     }
 
-    fn send_char(&mut self, x: usize, y: usize, ch: char) -> Result<(), Error> {
-        try!(self.send_cursor(Cursor::Valid(x, y)));
-        self.cursor_last = Cursor::Valid(x, y);
+    fn send_char(&mut self, cursor: Cursor, ch: char) -> Result<(), Error> {
+        if !self.cursor_last.is_next(cursor) {
+            try!(self.send_cursor(cursor));
+        }
+        self.cursor_last = cursor;
         try!(write!(self.outbuffer, "{}", ch));
         Ok(())
     }
