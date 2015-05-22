@@ -14,11 +14,11 @@ use nix::sys::signal::{SockFlag, SigSet};
 use nix::sys::signal::signal::SIGWINCH;
 use nix::sys::ioctl;
 
-use util::Error;
-use super::device::{Device, DevFunc};
-use super::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
-use super::bytebuffer::ByteBuffer;
-use super::cursor::Cursor;
+use util::error::Error;
+use core::device::{Device, DevFunc};
+use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
+use core::bytebuffer::ByteBuffer;
+use core::cursor::Cursor;
 
 /// Set to true by the sigwinch handler. Reset to false when handled elsewhere.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;

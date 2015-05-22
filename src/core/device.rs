@@ -1,7 +1,7 @@
 use std::env;
 use std::ops::Index;
 
-use util::Error;
+use util::error::Error;
 
 pub struct Device {
     name: &'static str,
