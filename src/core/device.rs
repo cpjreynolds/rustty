@@ -21,10 +21,6 @@ impl Device {
             Err(Error::new("TERM not set"))
         }
     }
-
-    pub fn name(&self) -> &str {
-        self.name
-    }
 }
 
 impl Index<DevFunc> for Device {

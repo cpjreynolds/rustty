@@ -10,34 +10,22 @@ pub struct CellBuffer {
 
 impl CellBuffer {
     pub fn new(cols: usize, rows: usize) -> CellBuffer {
-        CellBuffer {
-            cols: cols,
-            rows: rows,
-            cells: vec![vec![Cell::default(); cols]; rows],
-        }
+        CellBuffer::with_cell(cols, rows, Cell::default())
     }
 
     pub fn with_char(cols: usize, rows: usize, ch: char) -> CellBuffer {
-        CellBuffer {
-            cols: cols,
-            rows: rows,
-            cells: vec![vec![Cell::with_char(ch); cols]; rows],
-        }
+        CellBuffer::with_cell(cols, rows, Cell::with_char(ch))
     }
 
     pub fn with_styles(cols: usize, rows: usize, fg: Style, bg: Style) -> CellBuffer {
-        CellBuffer {
-            cols: cols,
-            rows: rows,
-            cells: vec![vec![Cell::with_styles(fg, bg); cols]; rows],
-        }
+        CellBuffer::with_cell(cols, rows, Cell::with_styles(fg, bg))
     }
 
     pub fn with_cell(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
         CellBuffer {
             cols: cols,
             rows: rows,
-            cells: vec![vec![cell; cols]; rows],
+            cells: vec![vec![cell; rows]; cols],
         }
     }
 
@@ -53,9 +41,21 @@ impl CellBuffer {
         (self.cols, self.rows)
     }
 
-    pub fn clear(&mut self, blank: Cell) {
-        for row in &mut self.cells {
-            for cell in row.iter_mut() {
+    pub fn clear(&mut self) {
+        self.clear_with_cell(Cell::default());
+    }
+
+    pub fn clear_with_char(&mut self, ch: char) {
+        self.clear_with_cell(Cell::with_char(ch));
+    }
+
+    pub fn clear_with_styles(&mut self, fg: Style, bg: Style) {
+        self.clear_with_cell(Cell::with_styles(fg, bg));
+    }
+
+    pub fn clear_with_cell(&mut self, blank: Cell) {
+        for col in &mut self.cells {
+            for cell in col.iter_mut() {
                 cell.ch = blank.ch;
                 cell.fg = blank.fg;
                 cell.bg = blank.bg;
@@ -68,32 +68,38 @@ impl CellBuffer {
             return;
         }
 
-        if newrows > self.rows {
-            if newcols > self.cols {
-                for row in &mut self.cells {
-                    row.extend(iter::repeat(blank).take(newcols - self.cols));
+        if newcols > self.cols {
+            if newrows > self.rows {
+                for col in &mut self.cells {
+                    col.extend(iter::repeat(blank).take(newrows - self.rows));
                 }
             } else {
                 for row in &mut self.cells {
-                    row.truncate(newcols);
+                    row.truncate(newrows);
                 }
             }
-            self.cells.extend(iter::repeat(vec![blank; newcols]).take(newrows - self.rows));
+            self.cells.extend(iter::repeat(vec![blank; newrows]).take(newcols - self.cols));
         } else {
-            if newcols > self.cols {
-                for row in &mut self.cells {
-                    row.extend(iter::repeat(blank).take(newcols - self.cols));
+            if newrows > self.rows {
+                for col in &mut self.cells {
+                    col.extend(iter::repeat(blank).take(newrows - self.rows));
                 }
             } else {
-                for row in &mut self.cells {
-                    row.truncate(newcols);
+                for col in &mut self.cells {
+                    col.truncate(newrows);
                 }
             }
-            self.cells.truncate(newrows);
+            self.cells.truncate(newcols);
         }
 
         self.rows = newrows;
         self.cols = newcols;
+    }
+}
+
+impl Default for CellBuffer {
+    fn default() -> CellBuffer {
+        CellBuffer::with_cell(0, 0, Cell::default())
     }
 }
 
@@ -113,9 +119,9 @@ impl IndexMut<usize> for CellBuffer {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Cell {
-    pub ch: char,
-    pub fg: Style,
-    pub bg: Style,
+    ch: char,
+    fg: Style,
+    bg: Style,
 }
 
 impl Cell {
@@ -128,44 +134,80 @@ impl Cell {
     }
 
     pub fn with_char(ch: char) -> Cell {
-        Cell {
-            ch: ch,
-            fg: Style::default(),
-            bg: Style::default(),
-        }
+        Cell::new(ch, Style::default(), Style::default())
     }
 
     pub fn with_styles(fg: Style, bg: Style) -> Cell {
-        Cell {
-            ch: ' ',
-            fg: fg,
-            bg: bg,
-        }
+        Cell::new(' ', fg, bg)
     }
 
-    pub fn default() -> Cell {
-        Cell {
-            ch: ' ',
-            fg: Style::default(),
-            bg: Style::default(),
-        }
+    pub fn ch(&self) -> char {
+        self.ch
+    }
+
+    pub fn set_ch(&mut self, newch: char) {
+        self.ch = newch;
+    }
+
+    pub fn fg(&self) -> Style {
+        self.fg
+    }
+
+    pub fn set_fg(&mut self, newfg: Style) {
+        self.fg = newfg;
+    }
+
+    pub fn bg(&self) -> Style {
+        self.bg
+    }
+
+    pub fn set_bg(&mut self, newbg: Style) {
+        self.bg = newbg;
+    }
+}
+
+impl Default for Cell {
+    fn default() -> Cell {
+        Cell::new(' ', Style::default(), Style::default())
     }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub struct Style(pub Color, pub Attr);
+pub struct Style(Color, Attr);
 
 impl Style {
-    pub fn default() -> Style {
-        Style(Color::Default, Attr::Default)
+    pub fn new(color: Color, attr: Attr) -> Style {
+        Style(color, attr)
     }
 
     pub fn with_color(c: Color) -> Style {
-        Style(c, Attr::Default)
+        Style::new(c, Attr::Default)
     }
 
     pub fn with_attr(a: Attr) -> Style {
-        Style(Color::Default, a)
+        Style::new(Color::Default, a)
+    }
+
+    pub fn color(&self) -> Color {
+        self.0
+    }
+
+    pub fn set_color(&mut self, newcolor: Color) {
+        self.0 = newcolor;
+    }
+
+    pub fn attr(&self) -> Attr {
+        self.1
+    }
+
+    pub fn set_attr(&mut self, newattr: Attr) {
+        self.1 = newattr;
+    }
+}
+
+impl Default for Style {
+    fn default() -> Style {
+        Style::new(Color::Default, Attr::Default)
     }
 }
 
