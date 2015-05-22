@@ -21,59 +21,68 @@ use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
 use core::bytebuffer::ByteBuffer;
 use core::cursor::Cursor;
 
-/// Set to true by the sigwinch handler. Reset to false when handled elsewhere.
+/// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
-/// Set to true when there is an active Terminal instance.
-/// Reset to false when it goes out of scope.
+/// Ensures that there is only ever one Terminal object at any one time.
+/// Set to true on creation of a Terminal object.
+/// Reset to false when terminal object goes out of scope.
 static RUSTTY_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
+/// Constant for TIOCGWINSZ syscall on OS X.
 #[cfg(target_os="macos")]
 const TIOCGWINSZ: u64 = 0x40087468;
 
+/// Constant for TIOCGWINSZ syscall on Linux.
 #[cfg(target_os="linux")]
 const TIOCGWINSZ: u64 = 0x00005413;
 
 
-/// Terminal object.
+/// A representation of the current terminal window.
+///
+/// Only one `Terminal` object can exist at any one time.
+/// When a `Terminal` goes out of scope it resets the underlying terminal to its original state.
 pub struct Terminal {
-    orig_tios: termios::Termios,
-    tty: File,
-    rawtty: RawFd,
-    cols: usize,
-    rows: usize,
-    device: &'static Device,
-    backbuffer: CellBuffer,
-    frontbuffer: CellBuffer,
-    outbuffer: ByteBuffer,
-    fg: Style,
-    bg: Style,
-    last_fg: Style,
-    last_bg: Style,
-    cursor: Cursor,
-    cursor_last: Cursor,
+    orig_tios: termios::Termios, // Original underlying terminal state.
+    tty: File, // Underlying terminal file.
+    rawtty: RawFd, // Raw file descriptor of underlying terminal file.
+    cols: usize, // Number of columns in the terminal window.
+    rows: usize, // Number of rows in the terminal window.
+    device: &'static Device, // Underlying terminal device (xterm, gnome, etc.).
+    backbuffer: CellBuffer, // Internal backbuffer.
+    frontbuffer: CellBuffer, // Internal frontbuffer.
+    outbuffer: ByteBuffer, // Internal output buffer.
+    inbuffer: ByteBuffer, // Internal input buffer.
+    lastfg: Style, // Last foreground style written to the output buffer.
+    lastbg: Style, // Last background style written to the input buffer.
+    cursor: Cursor, // Current cursor position.
+    cursor_last: Cursor, // Last cursor position.
 }
 
 impl Terminal {
+    /// Creates a new `Terminal` with default settings.
     pub fn new() -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::default())
     }
 
+    /// Creates a new `Terminal` with each cell set to the given character.
     pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
     }
 
+    /// Creates a new `Terminal` with each cell set to the given styles.
     pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_styles(fg, bg))
     }
 
+    /// Creates a new `Terminal` with each cell set to the given cell.
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(Error::new("Rustty already initialized"))
         }
 
-        // Return the device object for the user's terminal.
+        // Return the device for the user's terminal.
         let device = try!(Device::new());
 
         // Open the terminal file for the controlling process.
@@ -122,10 +131,9 @@ impl Terminal {
             backbuffer: CellBuffer::with_cell(0, 0, cell),
             frontbuffer: CellBuffer::with_cell(0, 0, cell),
             outbuffer: ByteBuffer::with_capacity(32 * 1024),
-            fg: cell.fg(),
-            bg: cell.bg(),
-            last_fg: cell.fg(),
-            last_bg: cell.bg(),
+            inbuffer: ByteBuffer::with_capacity(128),
+            lastfg: cell.fg(),
+            lastbg: cell.bg(),
             cursor: Cursor::Invalid,
             cursor_last: Cursor::Invalid,
         };
@@ -153,9 +161,12 @@ impl Terminal {
         Ok(terminal)
     }
 
-    pub fn swap(&mut self) -> Result<(), Error> {
+    /// Send the current backbuffer to be displayed.
+    pub fn swap_buffers(&mut self) -> Result<(), Error> {
+        // Invalidate the last cursor position.
         self.cursor_last = Cursor::Invalid;
 
+        // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.update_size());
             try!(self.resize());
@@ -164,7 +175,7 @@ impl Terminal {
         for x in 0..self.cols() {
             for y in 0..self.rows() {
                 if self.backbuffer[x][y] == self.frontbuffer[x][y] {
-                    continue;
+                    continue; // Don't make rendundant draws.
                 } else {
                     self.frontbuffer[x][y] = self.backbuffer[x][y];
                 }
@@ -196,28 +207,34 @@ impl Terminal {
         (self.cols, self.rows)
     }
 
-    /// Clears the internal back buffer with the provided cell.
+    /// Clears the internal backbuffer with whitespace.
     pub fn clear(&mut self) {
         self.backbuffer.clear();
     }
 
+    /// Clears the internal backbuffer with the given character.
     pub fn clear_with_char(&mut self, ch: char) {
         self.backbuffer.clear_with_char(ch);
     }
 
+    /// Clears the internal backbuffer with the given styles.
     pub fn clear_with_styles(&mut self, fg: Style, bg: Style) {
         self.backbuffer.clear_with_styles(fg, bg);
     }
 
+    /// Clears the internal backbuffer with the given cell.
     pub fn clear_with_cell(&mut self, cell: Cell) {
         self.backbuffer.clear_with_cell(cell);
     }
 
+    /// Checks whether the window size has changed, returning `true` if it has.
     pub fn check_resize(&self) -> bool {
         SIGWINCH_STATUS.load(Ordering::SeqCst)
     }
 
-    pub fn resize_maybe(&mut self) -> Result<Option<(usize, usize)>, Error> {
+    /// Performs a resize if the window size has changed, returning the new size. Otherwise returns
+    /// none.
+    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.update_size());
             try!(self.resize());
@@ -262,6 +279,19 @@ impl Terminal {
         Ok(())
     }
 
+    fn send_char(&mut self, cursor: Cursor, ch: char) -> Result<(), Error> {
+        if let Cursor::Valid(cx, cy) = cursor {
+            if let Cursor::Valid(lx, ly) = self.cursor_last {
+                if (cx, cy) != (lx + 1, ly) {
+                    try!(self.send_cursor(cursor));
+                }
+            }
+        }
+        self.cursor_last = cursor;
+        try!(write!(self.outbuffer, "{}", ch));
+        Ok(())
+    }
+
     fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         try!(self.send_style(fg, bg));
         try!(write!(self.outbuffer, "{}", &self.device[DevFunc::ClearScreen]));
@@ -274,7 +304,7 @@ impl Terminal {
     }
 
     fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
-        if fg != self.last_fg || bg != self.last_bg {
+        if fg != self.lastfg || bg != self.lastbg {
             try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Sgr0]));
 
             match fg.attr() {
@@ -300,8 +330,8 @@ impl Terminal {
             } else if bg.color() != Color::Default {
                 try!(self.write_sgr_bg(bg.color()))
             }
-            self.last_fg = fg;
-            self.last_bg = bg;
+            self.lastfg = fg;
+            self.lastbg = bg;
         }
         Ok(())
     }
@@ -333,23 +363,9 @@ impl Terminal {
         Ok(())
     }
 
-    fn send_char(&mut self, cursor: Cursor, ch: char) -> Result<(), Error> {
-        if let Cursor::Valid(cx, cy) = cursor {
-            if let Cursor::Valid(lx, ly) = self.cursor_last {
-                if (cx, cy) != (lx + 1, ly) {
-                    try!(self.send_cursor(cursor));
-                }
-            }
-        }
-        self.cursor_last = cursor;
-        try!(write!(self.outbuffer, "{}", ch));
-        Ok(())
-    }
-
     fn resize(&mut self) -> Result<(), Error> {
         self.resize_with_cell(Cell::default())
     }
-
 
     fn resize_with_cell(&mut self, blank: Cell) -> Result<(), Error> {
         self.backbuffer.resize(self.cols, self.rows, blank);
@@ -394,10 +410,12 @@ impl Drop for Terminal {
     }
 }
 
+// Sigwinch handler to notify when window has resized.
 extern fn sigwinch_handler(_: i32) {
     SIGWINCH_STATUS.store(true, Ordering::SeqCst);
 }
 
+// Window size struct to pass to the kernel.
 #[repr(C)]
 struct WindowSize {
     ws_row: u16,
