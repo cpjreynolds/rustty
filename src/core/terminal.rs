@@ -4,6 +4,7 @@ use std::fs::OpenOptions;
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use std::collections::VecDeque;
 
 use nix::sys::termios;
 use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
@@ -18,7 +19,6 @@ use nix::sys::ioctl;
 use util::error::Error;
 use core::device::{Device, DevFunc};
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
-use core::bytebuffer::ByteBuffer;
 use core::cursor::Cursor;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
@@ -37,6 +37,8 @@ const TIOCGWINSZ: u64 = 0x40087468;
 #[cfg(target_os="linux")]
 const TIOCGWINSZ: u64 = 0x00005413;
 
+type OutBuffer = Vec<u8>;
+type InBuffer = VecDeque<u8>;
 
 /// A representation of the current terminal window.
 ///
@@ -51,8 +53,8 @@ pub struct Terminal {
     device: &'static Device, // Underlying terminal device (xterm, gnome, etc.).
     backbuffer: CellBuffer, // Internal backbuffer.
     frontbuffer: CellBuffer, // Internal frontbuffer.
-    outbuffer: ByteBuffer, // Internal output buffer.
-    inbuffer: ByteBuffer, // Internal input buffer.
+    outbuffer: OutBuffer, // Internal output buffer.
+    inbuffer: InBuffer, // Internal input buffer.
     lastfg: Style, // Last foreground style written to the output buffer.
     lastbg: Style, // Last background style written to the input buffer.
     cursor: Cursor, // Current cursor position.
@@ -130,8 +132,8 @@ impl Terminal {
             device: device,
             backbuffer: CellBuffer::with_cell(0, 0, cell),
             frontbuffer: CellBuffer::with_cell(0, 0, cell),
-            outbuffer: ByteBuffer::with_capacity(32 * 1024),
-            inbuffer: ByteBuffer::with_capacity(128),
+            outbuffer: OutBuffer::with_capacity(32 * 1024),
+            inbuffer: InBuffer::with_capacity(128),
             lastfg: cell.fg(),
             lastbg: cell.bg(),
             cursor: Cursor::Invalid,
