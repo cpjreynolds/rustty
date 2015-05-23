@@ -246,11 +246,25 @@ impl Terminal {
         SIGWINCH_STATUS.load(Ordering::SeqCst)
     }
 
+    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
+        self.try_resize_with_cell(Cell::default())
+    }
+
+    pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>, Error> {
+        self.try_resize_with_cell(Cell::with_char(ch))
+    }
+
+    pub fn try_resize_with_styles(&mut self,
+                                  fg: Style,
+                                  bg: Style) -> Result<Option<(usize, usize)>, Error> {
+        self.try_resize_with_cell(Cell::with_styles(fg, bg))
+    }
+
     /// Performs a resize if the window size has changed, returning the new size. Otherwise returns
     /// none.
-    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
+    pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.resize());
+            try!(self.resize_with_cell(cell));
             return Ok(Some((self.cols, self.rows)));
         }
         Ok(None)
@@ -366,14 +380,6 @@ impl Terminal {
 
     fn resize(&mut self) -> Result<(), Error> {
         self.resize_with_cell(Cell::default())
-    }
-
-    fn resize_with_char(&mut self, ch: char) -> Result<(), Error> {
-        self.resize_with_cell(Cell::with_char(ch))
-    }
-
-    fn resize_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
-        self.resize_with_cell(Cell::with_styles(fg, bg))
     }
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
