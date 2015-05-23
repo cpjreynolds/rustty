@@ -202,23 +202,43 @@ impl Terminal {
     }
 
     /// Clears the internal backbuffer with whitespace.
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self) -> Result<(), Error> {
+        // Check whether the window has been resized; if it has then update and resize the buffers.
+        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
+            try!(self.resize());
+        }
         self.backbuffer.clear();
+        Ok(())
     }
 
     /// Clears the internal backbuffer with the given character.
-    pub fn clear_with_char(&mut self, ch: char) {
+    pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
+        // Check whether the window has been resized; if it has then update and resize the buffers.
+        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
+            try!(self.resize());
+        }
         self.backbuffer.clear_with_char(ch);
+        Ok(())
     }
 
     /// Clears the internal backbuffer with the given styles.
-    pub fn clear_with_styles(&mut self, fg: Style, bg: Style) {
+    pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
+        // Check whether the window has been resized; if it has then update and resize the buffers.
+        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
+            try!(self.resize());
+        }
         self.backbuffer.clear_with_styles(fg, bg);
+        Ok(())
     }
 
     /// Clears the internal backbuffer with the given cell.
-    pub fn clear_with_cell(&mut self, cell: Cell) {
+    pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
+        // Check whether the window has been resized; if it has then update and resize the buffers.
+        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
+            try!(self.resize());
+        }
         self.backbuffer.clear_with_cell(cell);
+        Ok(())
     }
 
     /// Checks whether the window size has changed, returning `true` if it has.
@@ -346,6 +366,14 @@ impl Terminal {
 
     fn resize(&mut self) -> Result<(), Error> {
         self.resize_with_cell(Cell::default())
+    }
+
+    fn resize_with_char(&mut self, ch: char) -> Result<(), Error> {
+        self.resize_with_cell(Cell::with_char(ch))
+    }
+
+    fn resize_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
+        self.resize_with_cell(Cell::with_styles(fg, bg))
     }
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
