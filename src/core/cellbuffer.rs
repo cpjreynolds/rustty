@@ -145,24 +145,27 @@ impl Cell {
         self.ch
     }
 
-    pub fn set_ch(&mut self, newch: char) {
+    pub fn set_ch(&mut self, newch: char) -> &mut Cell {
         self.ch = newch;
+        self
     }
 
     pub fn fg(&self) -> Style {
         self.fg
     }
 
-    pub fn set_fg(&mut self, newfg: Style) {
+    pub fn set_fg(&mut self, newfg: Style) -> &mut Cell {
         self.fg = newfg;
+        self
     }
 
     pub fn bg(&self) -> Style {
         self.bg
     }
 
-    pub fn set_bg(&mut self, newbg: Style) {
+    pub fn set_bg(&mut self, newbg: Style) -> &mut Cell {
         self.bg = newbg;
+        self
     }
 }
 
@@ -192,16 +195,18 @@ impl Style {
         self.0
     }
 
-    pub fn set_color(&mut self, newcolor: Color) {
+    pub fn set_color(&mut self, newcolor: Color) -> &mut Style {
         self.0 = newcolor;
+        self
     }
 
     pub fn attr(&self) -> Attr {
         self.1
     }
 
-    pub fn set_attr(&mut self, newattr: Attr) {
+    pub fn set_attr(&mut self, newattr: Attr) -> &mut Style {
         self.1 = newattr;
+        self
     }
 }
 
