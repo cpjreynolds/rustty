@@ -21,8 +21,8 @@ Rustty is based on the concepts of cells and events. The terminal display is an
 array of cells, each holding a character and a set of foreground and background styles.
 Events are how a terminal communicates changes in its state; each event
 represents some form of action by the user, be it a keypress or a window resize.
-Each terminal has an event stream that receives input events that a program can
-then respond to.
+Each terminal has an event stream that receives input events and buffers them
+until they are read.
 
 ## Installation
 
