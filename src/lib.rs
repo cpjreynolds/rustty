@@ -1,3 +1,4 @@
+#![feature(io)]
 #![doc(html_root_url = "http://cpjreynolds.github.io/rustty/rustty/index.html")]
 
 //! Terminal UI library.
@@ -17,5 +18,7 @@ pub use core::cellbuffer::{
     Color,
     Attr,
 };
+pub use core::input::Event;
 pub use core::cursor::Cursor;
 pub use util::error::Error;
+

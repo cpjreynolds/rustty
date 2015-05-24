@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 
 use nix::sys::termios;
-use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
+use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON, IUTF8};
 use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB, CS8};
 use nix::sys::termios::{VMIN, VTIME};
 use nix::sys::termios::SetArg;
@@ -15,11 +15,15 @@ use nix::sys::signal;
 use nix::sys::signal::{SockFlag, SigSet};
 use nix::sys::signal::signal::SIGWINCH;
 use nix::sys::ioctl;
+use nix::sys::epoll::{epoll_create, epoll_ctl, epoll_wait};
+use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
+use nix::sys::epoll;
 
 use util::error::Error;
 use core::device::{Device, DevFunc};
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
 use core::cursor::Cursor;
+use core::input::Event;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -38,7 +42,7 @@ const TIOCGWINSZ: u64 = 0x40087468;
 const TIOCGWINSZ: u64 = 0x00005413;
 
 type OutBuffer = Vec<u8>;
-type InBuffer = VecDeque<u8>;
+type InBuffer = VecDeque<char>;
 
 /// A representation of the current terminal window.
 ///
@@ -290,6 +294,15 @@ impl Terminal {
         Ok(())
     }
 
+    pub fn get_char(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
+        let chr = try!(self.read_char(timeout_ms));
+        if let Some(ch) = chr {
+            Ok(Some(Event::Key(ch)))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn send_cursor(&mut self, c: Cursor) -> Result<(), Error> {
         if let Cursor::Valid(cx, cy) = c {
             try!(write!(self.outbuffer, "\x1b[{};{}H", cy+1, cx+1));
@@ -397,6 +410,29 @@ impl Terminal {
         try!(self.send_clear(blank.fg(), blank.bg()));
         Ok(())
     }
+
+    fn read_char(&mut self, timeout_ms: usize) -> Result<Option<char>, Error> {
+        let mut events: Vec<EpollEvent> = Vec::new();
+        let epfd = try!(epoll_create());
+        let epev = EpollEvent {
+            events: epoll::EPOLLIN,
+            data: 0,
+        };
+        events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
+        try!(epoll_ctl(epfd, EpollOp::EpollCtlAdd, self.rawtty, &epev));
+        let nevents = try!(epoll_wait(epfd, &mut events, timeout_ms));
+        if nevents == 0 {
+            return Ok(None);
+        }
+        let mut tty = Read::by_ref(&mut self.tty).take(1).chars();
+        if let Some(chr) = tty.next() {
+            let ch = try!(chr);
+            return Ok(Some(ch));
+        } else {
+            return Ok(None);
+        }
+    }
+
 
     fn flush(&mut self) -> Result<(), Error> {
         try!(self.tty.write_all(&self.outbuffer));

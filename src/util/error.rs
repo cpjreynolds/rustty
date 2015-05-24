@@ -43,6 +43,15 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<io::CharsError> for Error {
+    fn from(err: io::CharsError) -> Self {
+        Error {
+            description: "utf8 translation error",
+            cause: Some(Box::new(err)),
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.description())
