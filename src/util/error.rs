@@ -1,5 +1,3 @@
-//! Errors.
-
 use std::fmt;
 use std::convert::From;
 use std::io;
@@ -7,6 +5,7 @@ use std::error::Error as StdError;
 
 use nix;
 
+/// The error type for terminal operations.
 #[derive(Debug)]
 pub struct Error {
     description: &'static str,
@@ -25,6 +24,14 @@ impl Error {
 impl StdError for Error {
     fn description(&self) -> &str {
         self.description
+    }
+
+    fn cause(&self) -> Option<&StdError> {
+        if let Some(ref err) = self.cause {
+            Some(&**err)
+        } else {
+            None
+        }
     }
 }
 
