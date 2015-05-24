@@ -1,3 +1,3 @@
 # rustty [![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty)
-Pure Rust termbox implementation
 
+A library for creating textual user interfaces.
