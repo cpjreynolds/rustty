@@ -4,7 +4,6 @@
 //! Terminal UI library.
 
 extern crate nix;
-extern crate time;
 
 mod core;
 mod util;
