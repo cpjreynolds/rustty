@@ -2,11 +2,11 @@
 
 [![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty)
 
-- [API Documentation](http://cpjreynolds.github.io/rustty)
+- [API Documentation][1]
 - [Intro](#intro)
 - [Installation](#installation)
 - [Concepts](#concepts)
-	- [The Terminal](#the-terminal)
+	- [Terminal](#terminal)
 	- [Cells](#cells)
 	- [Events](#events)
 - [Usage Guide](#usage-guide)
@@ -14,11 +14,11 @@
 
 ## Intro
 
-Rustty is a terminal UI library that provides a simple, elegant abstraction
-over the underlying system.
+Rustty is a terminal UI library that provides a concise, elegant abstraction
+over an underlying terminal device.
 
-Rustty is based on the concept of cells and events; a terminal is an array of
-cells, each holding a character and a set of foreground and background styles.
+Rustty is based on the concepts of cells and events. The terminal display is an 
+array of cells, each holding a character and a set of foreground and background styles.
 Events are how a terminal communicates changes in its state; each event
 represents some form of action by the user, be it a keypress or a window resize.
 Each terminal has an event stream that receives input events that a program can
@@ -42,9 +42,9 @@ extern crate rustty;
 ## Concepts
 
 The purpose of this section is to introduce and explain the main concepts of
-rustty.
+rustty and the decisions behind its design.
 
-### The Terminal
+### Terminal
 
 The terminal representation can be thought of as such:
 
@@ -74,22 +74,24 @@ of cells.
 
 ### Events
 
-Events are how changes in the terminal state are represented and given to a
-program to respond to. Each terminal has an event stream; when an event occurs,
-such as a keypress, it is pushed on to the back of the stream, when a program
-reads an event from the stream, it is taken from the front of the stream. Events
-are asynchronous by nature and are dealt with as such, reads and writes from the
-event stream can occur asynchronously and without resource contention.
+Events are how changes in a terminal's state are represented. 
+A terminal has an associated event stream which acts much like a UNIX pipe,
+or a FIFO queue. When events occur they are pushed on to
+the back of the stream; when events are read they are taken
+from the front of the stream.
 
 ## Usage Guide
 
 Examples and usage suggestions can be found in the [API
-documentation](http://cpjreynolds.github.io/rustty).
+documentation][1].
 
 ## Contact
 
-If you have any issues with the library please report them with the issue
-tracker.
+If you encounter any issues with the library or have suggestions,
+please report them with the [issue tracker](https://github.com/cpjreynolds/rustty/issues).
 
-If you have any further questions don't hesitate to email me, and I will try to
-respond promptly.
+If you have any further questions, please don't hesitate to 
+[email me](mailto:cpjreynolds@gmail.com), and I respond as soon as
+I am able.
+
+[1]: http://cpjreynolds.github.io/rustty
