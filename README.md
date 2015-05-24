@@ -36,7 +36,7 @@ rustty = "*"
 Then, add this to your crate root:
 
 ```rust
-extern crate nix;
+extern crate rustty;
 ```
 
 ## Concepts
