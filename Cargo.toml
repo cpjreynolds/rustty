@@ -2,7 +2,7 @@
 name = "rustty"
 version = "0.0.1"
 authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
-description = "Library for creating textual user interfaces."
+description = "A library for creating textual user interfaces."
 documentation = "https://cpjreynolds.github.com/rustty"
 repository = "https://github.com/cpjreynolds/rustty"
 readme = "README.md"
