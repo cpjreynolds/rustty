@@ -153,6 +153,8 @@ impl Terminal {
         // Hide cursor. Writes the control code to the output buffer.
         try!(write!(terminal.outbuffer, "{}", &terminal.device[DevFunc::HideCursor]));
 
+        // Resize the buffers to the size of the underlying terminals. Using the given cell as a
+        // blank.
         try!(terminal.resize_with_cell(cell));
 
         // Return the initialized terminal object.
@@ -170,18 +172,18 @@ impl Terminal {
         self.cursor_last = Cursor::Invalid;
 
         for x in 0..self.cols() {
-            if self.backbuffer[x] == self.frontbuffer[x] {
-                continue; // Redundant draw checking.
+            if self.frontbuffer[x] == self.backbuffer[x] {
+                continue; // Don't redraw draw columns that haven't changed.
             }
             for y in 0..self.rows() {
-                if self.backbuffer[x][y] == self.frontbuffer[x][y] {
-                    continue; // Don't make rendundant draws.
+                if self.frontbuffer[x][y] == self.backbuffer[x][y] {
+                    continue; // Don't redraw cells that haven't changed.
                 } else {
-                    self.frontbuffer[x][y] = self.backbuffer[x][y];
+                    let cell = self.backbuffer[x][y];
+                    try!(self.send_style(cell.fg(), cell.bg()));
+                    try!(self.send_char(Cursor::Valid(x, y), cell.ch()));
+                    self.frontbuffer[x][y] = cell;
                 }
-                let cell = self.backbuffer[x][y];
-                try!(self.send_style(cell.fg(), cell.bg()));
-                try!(self.send_char(Cursor::Valid(x, y), cell.ch()));
             }
         }
 
@@ -289,26 +291,27 @@ impl Terminal {
         self.cursor = c;
 
         if self.cursor != Cursor::Invalid {
-            try!(self.send_cursor(c));
+            try!(self.send_current_cursor());
         }
         Ok(())
     }
 
     pub fn get_event(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
-        // First check if there is an event in the event buffer and return it if there is.
-        if let Some(evt) = self.eventbuffer.pop_front() {
-            Ok(Some(evt))
-        } else {
-            // No events in the event buffer. Lets try the terminal.
+        // Check if the event buffer is empty.
+        if self.eventbuffer.is_empty() {
+            // Event buffer is empty, lets poll the terminal for events.
             let nevts = try!(self.read_events(timeout_ms));
             if nevts == 0 {
                 // No events from the terminal either. Return none.
                 Ok(None)
             } else {
+                // Got at least one event from the terminal. Pop from the front of the event queue.
                 Ok(self.eventbuffer.pop_front())
             }
+        } else {
+            // There is at least one event in the buffer already. Pop and return it.
+            Ok(self.eventbuffer.pop_front())
         }
-
     }
 
     fn send_cursor(&mut self, c: Cursor) -> Result<(), Error> {
@@ -330,12 +333,8 @@ impl Terminal {
     }
 
     fn send_char(&mut self, cursor: Cursor, ch: char) -> Result<(), Error> {
-        if let Cursor::Valid(cx, cy) = cursor {
-            if let Cursor::Valid(lx, ly) = self.cursor_last {
-                if (cx, cy) != (lx + 1, ly) {
-                    try!(self.send_cursor(cursor));
-                }
-            }
+        if cursor != self.cursor_last.next() {
+            try!(self.send_cursor(cursor));
         }
         self.cursor_last = cursor;
         try!(write!(self.outbuffer, "{}", ch));
@@ -421,13 +420,14 @@ impl Terminal {
 
     /// Attempts to read any available events from the terminal into the event buffer, waiting for
     /// the specified number of milliseconds for input to become available.
-    /// 
+    ///
     /// Returns the number of events read into the buffer.
     fn read_events(&mut self, timeout_ms: usize) -> Result<usize, Error> {
         // Event vector to pass to kernel.
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
 
+        // Create an epoll instance so we can time out our read from the terminal.
         let epfd = try!(epoll_create());
         let epev = EpollEvent {
             events: epoll::EPOLLIN,
@@ -440,11 +440,13 @@ impl Terminal {
             // No input available. Return None.
             Ok(0)
         } else {
+            // Input is available from the terminal.
             // Get an iterator of chars over the input stream.
             let mut chars = Read::by_ref(&mut self.tty).chars();
             let mut n = 0;
             for chr in chars {
                 let ch = try!(chr);
+                // Push each character onto the event queue and increment the count.
                 self.eventbuffer.push_back(Event::Key(ch));
                 n += 1;
             }

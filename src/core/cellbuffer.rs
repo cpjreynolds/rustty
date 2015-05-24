@@ -5,7 +5,7 @@ use std::ops::{Index, IndexMut};
 pub struct CellBuffer {
     cols: usize,
     rows: usize,
-    cells: Vec<Vec<Cell>>,
+    pub cells: Vec<Vec<Cell>>,
 }
 
 impl CellBuffer {
