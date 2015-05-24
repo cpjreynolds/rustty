@@ -42,7 +42,7 @@ const TIOCGWINSZ: u64 = 0x40087468;
 const TIOCGWINSZ: u64 = 0x00005413;
 
 type OutBuffer = Vec<u8>;
-type InBuffer = VecDeque<char>;
+type EventBuffer = VecDeque<Event>;
 
 /// A representation of the current terminal window.
 ///
@@ -58,7 +58,7 @@ pub struct Terminal {
     backbuffer: CellBuffer, // Internal backbuffer.
     frontbuffer: CellBuffer, // Internal frontbuffer.
     outbuffer: OutBuffer, // Internal output buffer.
-    inbuffer: InBuffer, // Internal input buffer.
+    eventbuffer: EventBuffer, // Event buffer.
     lastfg: Style, // Last foreground style written to the output buffer.
     lastbg: Style, // Last background style written to the input buffer.
     cursor: Cursor, // Current cursor position.
@@ -137,7 +137,7 @@ impl Terminal {
             backbuffer: CellBuffer::with_cell(0, 0, cell),
             frontbuffer: CellBuffer::with_cell(0, 0, cell),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
-            inbuffer: InBuffer::with_capacity(128),
+            eventbuffer: EventBuffer::with_capacity(128),
             lastfg: cell.fg(),
             lastbg: cell.bg(),
             cursor: Cursor::Invalid,
@@ -294,13 +294,21 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn get_char(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
-        let chr = try!(self.read_char(timeout_ms));
-        if let Some(ch) = chr {
-            Ok(Some(Event::Key(ch)))
+    pub fn get_event(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
+        // First check if there is an event in the event buffer and return it if there is.
+        if let Some(evt) = self.eventbuffer.pop_front() {
+            Ok(Some(evt))
         } else {
-            Ok(None)
+            // No events in the event buffer. Lets try the terminal.
+            let nevts = try!(self.read_events(timeout_ms));
+            if nevts == 0 {
+                // No events from the terminal either. Return none.
+                Ok(None)
+            } else {
+                Ok(self.eventbuffer.pop_front())
+            }
         }
+
     }
 
     fn send_cursor(&mut self, c: Cursor) -> Result<(), Error> {
@@ -411,25 +419,36 @@ impl Terminal {
         Ok(())
     }
 
-    fn read_char(&mut self, timeout_ms: usize) -> Result<Option<char>, Error> {
+    /// Attempts to read any available events from the terminal into the event buffer, waiting for
+    /// the specified number of milliseconds for input to become available.
+    /// 
+    /// Returns the number of events read into the buffer.
+    fn read_events(&mut self, timeout_ms: usize) -> Result<usize, Error> {
+        // Event vector to pass to kernel.
         let mut events: Vec<EpollEvent> = Vec::new();
+        events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
+
         let epfd = try!(epoll_create());
         let epev = EpollEvent {
             events: epoll::EPOLLIN,
             data: 0,
         };
-        events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
         try!(epoll_ctl(epfd, EpollOp::EpollCtlAdd, self.rawtty, &epev));
+
         let nevents = try!(epoll_wait(epfd, &mut events, timeout_ms));
         if nevents == 0 {
-            return Ok(None);
-        }
-        let mut tty = Read::by_ref(&mut self.tty).take(1).chars();
-        if let Some(chr) = tty.next() {
-            let ch = try!(chr);
-            return Ok(Some(ch));
+            // No input available. Return None.
+            Ok(0)
         } else {
-            return Ok(None);
+            // Get an iterator of chars over the input stream.
+            let mut chars = Read::by_ref(&mut self.tty).chars();
+            let mut n = 0;
+            for chr in chars {
+                let ch = try!(chr);
+                self.eventbuffer.push_back(Event::Key(ch));
+                n += 1;
+            }
+            Ok(n)
         }
     }
 

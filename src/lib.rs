@@ -3,10 +3,8 @@
 
 //! Terminal UI library.
 
-#[macro_use]
-extern crate bitflags;
-extern crate libc;
 extern crate nix;
+extern crate time;
 
 mod core;
 mod util;
