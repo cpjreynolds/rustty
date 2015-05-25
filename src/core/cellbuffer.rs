@@ -68,7 +68,6 @@ impl CellBuffer {
         for col in &mut self.cells {
             col.resize(newrows, blank);
         }
-
         self.cols = newcols;
         self.rows = newrows;
     }
@@ -122,27 +121,35 @@ impl Cell {
         self.ch
     }
 
-    pub fn set_ch(&mut self, newch: char) -> &mut Cell {
+    pub fn set_ch(&mut self, newch: char) -> Cell {
         self.ch = newch;
-        self
+        *self
     }
 
     pub fn fg(&self) -> Style {
         self.fg
     }
 
-    pub fn set_fg(&mut self, newfg: Style) -> &mut Cell {
+    pub fn fg_mut(&mut self) -> &mut Style {
+        &mut self.fg
+    }
+
+    pub fn set_fg(&mut self, newfg: Style) -> Cell {
         self.fg = newfg;
-        self
+        *self
     }
 
     pub fn bg(&self) -> Style {
         self.bg
     }
 
-    pub fn set_bg(&mut self, newbg: Style) -> &mut Cell {
+    pub fn bg_mut(&mut self) -> &mut Style {
+        &mut self.bg
+    }
+
+    pub fn set_bg(&mut self, newbg: Style) -> Cell {
         self.bg = newbg;
-        self
+        *self
     }
 }
 
@@ -172,18 +179,18 @@ impl Style {
         self.0
     }
 
-    pub fn set_color(&mut self, newcolor: Color) -> &mut Style {
+    pub fn set_color(&mut self, newcolor: Color) -> Style {
         self.0 = newcolor;
-        self
+        *self
     }
 
     pub fn attr(&self) -> Attr {
         self.1
     }
 
-    pub fn set_attr(&mut self, newattr: Attr) -> &mut Style {
+    pub fn set_attr(&mut self, newattr: Attr) -> Style {
         self.1 = newattr;
-        self
+        *self
     }
 }
 
