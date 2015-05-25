@@ -372,20 +372,14 @@ impl Terminal {
     fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), Error> {
         match fgcol {
             Color::Default => {},
-            Color::Byte(b) => {
-                try!(write!(self.outbuffer, "\x1b[38;5;{}m", b));
-            },
             fgc @ _ => {
-                try!(write!(self.outbuffer, "\x1b[3{}m", fgc.as_byte()));
+                try!(write!(self.outbuffer, "\x1b[38;5;{}m", fgc.as_byte()));
             },
         }
         match bgcol {
             Color::Default => {},
-            Color::Byte(b) => {
-                try!(write!(self.outbuffer, "\x1b[48;5;{}m", b));
-            },
             bgc @ _ => {
-                try!(write!(self.outbuffer, "\x1b[4{}m", bgc.as_byte()));
+                try!(write!(self.outbuffer, "\x1b[48;5;{}m", bgc.as_byte()));
             },
         }
         Ok(())
