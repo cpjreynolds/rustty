@@ -5,7 +5,7 @@ use std::error::Error as StdError;
 
 use nix;
 
-/// The error type for terminal operations.
+/// An error arising from terminal operations.
 #[derive(Debug)]
 pub struct Error {
     description: &'static str,
@@ -13,6 +13,7 @@ pub struct Error {
 }
 
 impl Error {
+    /// Creates a new `Error` with the given description.
     pub fn new(desc: &'static str) -> Error {
         Error {
             description: desc,

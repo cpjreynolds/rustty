@@ -93,6 +93,11 @@ impl IndexMut<usize> for CellBuffer {
     }
 }
 
+/// A cell of a terminal display.
+///
+/// A `Cell` contains a character and a set of foreground and background `Style`s; it represents a
+/// single point on a terminal display. A terminal is an array of cells, each having its own
+/// character and styles.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Cell {
     ch: char,
@@ -101,6 +106,7 @@ pub struct Cell {
 }
 
 impl Cell {
+    /// Creates a new `Cell` from the given `char` and styles.
     pub fn new(ch: char, fg: Style, bg: Style) -> Cell {
         Cell {
             ch: ch,
@@ -109,23 +115,28 @@ impl Cell {
         }
     }
 
+    /// Creates a new `Cell` from the given `char` and default styles.
     pub fn with_char(ch: char) -> Cell {
         Cell::new(ch, Style::default(), Style::default())
     }
 
+    /// Creates a new `Cell` from the given styles and a blank `char`.
     pub fn with_styles(fg: Style, bg: Style) -> Cell {
         Cell::new(' ', fg, bg)
     }
 
+    /// Returns the `Cell`'s character.
     pub fn ch(&self) -> char {
         self.ch
     }
 
+    /// Sets the `Cell`'s character to the given `char`
     pub fn set_ch(&mut self, newch: char) -> &mut Cell {
         self.ch = newch;
         self
     }
 
+    /// Returns the `Cell`'s foreground `Style`.
     pub fn fg(&self) -> Style {
         self.fg
     }
