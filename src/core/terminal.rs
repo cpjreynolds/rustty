@@ -54,7 +54,6 @@ pub struct Terminal {
     tty: File, // Underlying terminal file.
     rawtty: RawFd, // Raw file descriptor of underlying terminal file.
     epfd: RawFd, // Epoll file descriptor.
-    epev: EpollEvent, // Epoll event bound to /dev/tty.
     cols: usize, // Number of columns in the terminal window.
     rows: usize, // Number of rows in the terminal window.
     device: &'static Device, // Underlying terminal device (xterm, gnome, etc.).
@@ -142,7 +141,6 @@ impl Terminal {
             tty: tty,
             rawtty: rawtty,
             epfd: epfd,
-            epev: epev,
             cols: 0,
             rows: 0,
             device: device,
