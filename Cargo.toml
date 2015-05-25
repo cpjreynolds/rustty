@@ -1,9 +1,9 @@
 [package]
 name = "rustty"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Cole Reynolds <cpjreynolds@gmail.com>"]
 description = "A terminal UI library"
-documentation = "https://cpjreynolds.github.com/rustty"
+documentation = "https://cpjreynolds.github.io/rustty"
 repository = "https://github.com/cpjreynolds/rustty"
 homepage = "https://github.com/cpjreynolds/rustty"
 readme = "README.md"
