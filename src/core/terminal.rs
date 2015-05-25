@@ -424,6 +424,7 @@ impl Terminal {
         self.rows = ws.ws_row as usize;
         self.backbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.resize(self.cols, self.rows, blank);
+        self.frontbuffer.clear_with_cell(blank);
         try!(self.send_clear(blank.fg(), blank.bg()));
         Ok(())
     }

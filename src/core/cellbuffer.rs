@@ -64,32 +64,9 @@ impl CellBuffer {
     }
 
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        if self.cols == newcols && self.rows == newrows {
-            return;
-        }
-
-        if newcols > self.cols {
-            if newrows > self.rows {
-                for col in &mut self.cells {
-                    col.extend(iter::repeat(blank).take(newrows - self.rows));
-                }
-            } else {
-                for col in &mut self.cells {
-                    col.truncate(newrows);
-                }
-            }
-            self.cells.extend(iter::repeat(vec![blank; newrows]).take(newcols - self.cols));
-        } else {
-            if newrows > self.rows {
-                for col in &mut self.cells {
-                    col.extend(iter::repeat(blank).take(newrows - self.rows));
-                }
-            } else {
-                for col in &mut self.cells {
-                    col.truncate(newrows);
-                }
-            }
-            self.cells.truncate(newcols);
+        self.cells.resize(newcols, vec![blank; newrows]);
+        for col in &mut self.cells {
+            col.resize(newrows, blank);
         }
 
         self.cols = newcols;
