@@ -18,6 +18,7 @@ use nix::sys::ioctl;
 use nix::sys::epoll::{epoll_create, epoll_ctl, epoll_wait};
 use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
+use nix::errno::Errno;
 
 use util::error::Error;
 use core::device::{Device, DevFunc};
@@ -438,7 +439,26 @@ impl Terminal {
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
 
-        let nevents = try!(epoll_wait(self.epfd, &mut events, timeout_ms));
+        let mut nevents: usize = 0;
+        // Because the sigwinch handler will interrupt epoll, if epoll returns EINTR we loop
+        // and try again. All other errors will return normally.
+        loop {
+            nevents = match epoll_wait(self.epfd, &mut events, timeout_ms) {
+                Ok(n) => n,
+                Err(e) if e.errno() == Errno::EINTR => {
+                    // Errno is EINTR, loop and try again.
+                    continue;
+                },
+                Err(e) => {
+                    // Error that isn't EINTR, return up the stack.
+                    return Err(Error::from(e));
+                },
+            };
+            // We will only reach this point if epoll_wait succeeds, therefore we have assigned
+            // to nevents and can break.
+            break;
+        }
+
         if nevents == 0 {
             // No input available. Return None.
             Ok(0)
