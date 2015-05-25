@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 
 use nix::sys::termios;
-use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON, IUTF8};
+use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
 use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB, CS8};
 use nix::sys::termios::{VMIN, VTIME};
 use nix::sys::termios::SetArg;
@@ -439,7 +439,7 @@ impl Terminal {
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
 
-        let mut nevents: usize = 0;
+        let mut nevents: usize;
         // Because the sigwinch handler will interrupt epoll, if epoll returns EINTR we loop
         // and try again. All other errors will return normally.
         loop {
@@ -465,7 +465,7 @@ impl Terminal {
         } else {
             // Input is available from the terminal.
             // Get an iterator of chars over the input stream.
-            let mut chars = Read::by_ref(&mut self.tty).chars();
+            let chars = Read::by_ref(&mut self.tty).chars();
             let mut n = 0;
             for chr in chars {
                 let ch = try!(chr);
