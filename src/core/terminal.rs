@@ -438,11 +438,11 @@ impl Terminal {
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
 
-        let mut nevents: usize;
+        let mut nepolls: usize;
         // Because the sigwinch handler will interrupt epoll, if epoll returns EINTR we loop
         // and try again. All other errors will return normally.
         loop {
-            nevents = match epoll_wait(self.epfd, &mut events, timeout_ms) {
+            nepolls = match epoll_wait(self.epfd, &mut events, timeout_ms) {
                 Ok(n) => n,
                 Err(e) if e.errno() == Errno::EINTR => {
                     // Errno is EINTR, loop and try again.
@@ -458,7 +458,7 @@ impl Terminal {
             break;
         }
 
-        if nevents == 0 {
+        if nepolls == 0 {
             // No input available. Return None.
             Ok(0)
         } else {
