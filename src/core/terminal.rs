@@ -52,6 +52,8 @@ pub struct Terminal {
     orig_tios: termios::Termios, // Original underlying terminal state.
     tty: File, // Underlying terminal file.
     rawtty: RawFd, // Raw file descriptor of underlying terminal file.
+    epfd: RawFd, // Epoll file descriptor.
+    epev: EpollEvent, // Epoll event bound to /dev/tty.
     cols: usize, // Number of columns in the terminal window.
     rows: usize, // Number of rows in the terminal window.
     device: &'static Device, // Underlying terminal device (xterm, gnome, etc.).
@@ -126,11 +128,20 @@ impl Terminal {
         // Make the system call to change terminal parameters.
         try!(termios::tcsetattr(rawtty, SetArg::TCSAFLUSH, &tios));
 
+        let epfd = try!(epoll_create());
+        let epev = EpollEvent {
+            events: epoll::EPOLLIN,
+            data: 0,
+        };
+        try!(epoll_ctl(epfd, EpollOp::EpollCtlAdd, rawtty, &epev));
+
         // Create the terminal object to hold all of our required state.
         let mut terminal = Terminal {
             orig_tios: orig_tios,
             tty: tty,
             rawtty: rawtty,
+            epfd: epfd,
+            epev: epev,
             cols: 0,
             rows: 0,
             device: device,
@@ -427,15 +438,7 @@ impl Terminal {
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
 
-        // Create an epoll instance so we can time out our read from the terminal.
-        let epfd = try!(epoll_create());
-        let epev = EpollEvent {
-            events: epoll::EPOLLIN,
-            data: 0,
-        };
-        try!(epoll_ctl(epfd, EpollOp::EpollCtlAdd, self.rawtty, &epev));
-
-        let nevents = try!(epoll_wait(epfd, &mut events, timeout_ms));
+        let nevents = try!(epoll_wait(self.epfd, &mut events, timeout_ms));
         if nevents == 0 {
             // No input available. Return None.
             Ok(0)
