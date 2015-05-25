@@ -278,8 +278,8 @@ impl Terminal {
         self.try_resize_with_cell(Cell::with_styles(fg, bg))
     }
 
-    /// Performs a resize if the window size has changed, returning the new size. Otherwise returns
-    /// none.
+    /// Performs a resize if the window size has changed, returning the new size. Returns `None`
+    /// if the window size hasn't changed.
     pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize_with_cell(cell));
