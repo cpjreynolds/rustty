@@ -202,15 +202,33 @@ impl Default for Style {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Color {
-    Black = 0x0000,
-    Red = 0x0001,
-    Green = 0x0002,
-    Yellow = 0x0003,
-    Blue = 0x0004,
-    Magenta = 0x0005,
-    Cyan = 0x0006,
-    White = 0x0007,
+    Black,
+    Red,
+    Green,
+    Yellow,
+    Blue,
+    Magenta,
+    Cyan,
+    White,
+    Byte(u8),
     Default,
+}
+
+impl Color {
+    pub fn as_byte(&self) -> u8 {
+        match *self {
+            Color::Black => { 0x00 },
+            Color::Red => { 0x01 },
+            Color::Green => { 0x02 },
+            Color::Yellow => { 0x03 },
+            Color::Blue => { 0x04 },
+            Color::Magenta => { 0x05 },
+            Color::Cyan => { 0x06 },
+            Color::White => { 0x07 },
+            Color::Byte(b) => { b },
+            Color::Default => { panic!("Attempted to cast default color to u8") },
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]

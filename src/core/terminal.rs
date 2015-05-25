@@ -362,33 +362,32 @@ impl Terminal {
                 _ => {},
             }
 
-            if fg.color() != Color::Default {
-                if bg.color() != Color::Default {
-                    try!(self.write_sgr(fg.color(), bg.color()))
-                } else {
-                    try!(self.write_sgr_fg(fg.color()))
-                }
-            } else if bg.color() != Color::Default {
-                try!(self.write_sgr_bg(bg.color()))
-            }
+            try!(self.write_sgr(fg.color(), bg.color()));
             self.lastfg = fg;
             self.lastbg = bg;
         }
         Ok(())
     }
 
-    fn write_sgr_fg(&mut self, fgcol: Color) -> Result<(), Error> {
-        try!(write!(self.outbuffer, "\x1b[3{}m", fgcol as usize));
-        Ok(())
-    }
-
-    fn write_sgr_bg(&mut self, bgcol: Color) -> Result<(), Error> {
-        try!(write!(self.outbuffer, "\x1b[4{}m", bgcol as usize));
-        Ok(())
-    }
-
     fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), Error> {
-        try!(write!(self.outbuffer, "\x1b[3{};4{}m", fgcol as usize, bgcol as usize));
+        match fgcol {
+            Color::Default => {},
+            Color::Byte(b) => {
+                try!(write!(self.outbuffer, "\x1b[38;5;{}m", b));
+            },
+            fgc @ _ => {
+                try!(write!(self.outbuffer, "\x1b[3{}m", fgc.as_byte()));
+            },
+        }
+        match bgcol {
+            Color::Default => {},
+            Color::Byte(b) => {
+                try!(write!(self.outbuffer, "\x1b[48;5;{}m", b));
+            },
+            bgc @ _ => {
+                try!(write!(self.outbuffer, "\x1b[4{}m", bgc.as_byte()));
+            },
+        }
         Ok(())
     }
 
