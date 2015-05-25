@@ -4,16 +4,15 @@
 
 //! # Rustty
 //!
-//! Rustty is a terminal UI library that provides a simple and concise abstraction over an
+//! Rustty is a terminal UI library that provides a simple, concise abstraction over an
 //! underlying terminal device.
 //!
-//! Rustty is based on the concepts of cells and events. The terminal display is an array of cells,
+//! Rustty is based on the concepts of cells and events. A terminal display is an array of cells,
 //! each holding a character and a set of foreground and background styles. Events are how a
-//! terminal communicates changes in its state; each event represents some form of action taken by
-//! the user, such as a keypress. Each terminal has an event stream that receives input events and
-//! buffers them until they are read.
+//! terminal communicates changes in its state; events are received from a terminal, processed, and
+//! pushed onto an input stream to be read and responded to.
 //!
-//! More on the concepts of Rustty can be found in the
+//! Futher reading on the concepts behind Rustty can be found in the
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
 extern crate nix;
