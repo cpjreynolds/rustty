@@ -23,8 +23,8 @@ use nix::errno::Errno;
 use util::error::Error;
 use core::device::{Device, DevFunc};
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
-use core::cursor::Cursor;
 use core::input::Event;
+use core::position::{Position, Coordinate, Cursor, Pair};
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -64,7 +64,6 @@ pub struct Terminal {
     lastfg: Style, // Last foreground style written to the output buffer.
     lastbg: Style, // Last background style written to the input buffer.
     cursor: Cursor, // Current cursor position.
-    cursor_last: Cursor, // Last cursor position.
 }
 
 impl Terminal {
@@ -150,8 +149,7 @@ impl Terminal {
             eventbuffer: EventBuffer::with_capacity(128),
             lastfg: cell.fg(),
             lastbg: cell.bg(),
-            cursor: Cursor::Invalid,
-            cursor_last: Cursor::Invalid,
+            cursor: Cursor::new(),
         };
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
@@ -179,7 +177,7 @@ impl Terminal {
         }
 
         // Invalidate the last cursor position.
-        self.cursor_last = Cursor::Invalid;
+        self.cursor.invalidate_last_pos();
 
         for x in 0..self.cols() {
             if self.frontbuffer[x] == self.backbuffer[x] {
@@ -191,15 +189,12 @@ impl Terminal {
                 } else {
                     let cell = self.backbuffer[x][y];
                     try!(self.send_style(cell.fg(), cell.bg()));
-                    try!(self.send_char(Cursor::Valid(x, y), cell.ch()));
+                    try!(self.send_char(Coordinate::Valid((x, y)), cell.ch()));
                     self.frontbuffer[x][y] = cell;
                 }
             }
         }
-
-        if self.cursor != Cursor::Invalid {
-            try!(self.send_current_cursor());
-        }
+        try!(self.send_cursor());
         try!(self.flush());
         Ok(())
     }
@@ -289,22 +284,22 @@ impl Terminal {
     }
 
     /// Sets the cursor position.
-    pub fn set_cursor(&mut self, c: Cursor) -> Result<(), Error> {
-        if self.cursor == Cursor::Invalid && c != Cursor::Invalid {
+    pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
+        if self.cursor.pos().is_invalid() {
             try!(write!(self.outbuffer, "{}", &self.device[DevFunc::ShowCursor]));
         }
+        self.cursor.set_pos(Coordinate::Valid((x, y)));
+        try!(self.send_cursor());
+        Ok(())
+    }
 
-        if self.cursor != Cursor::Invalid && c == Cursor::Invalid {
+    pub fn hide_cursor(&mut self) -> Result<(), Error> {
+        if self.cursor.pos().is_valid() {
             try!(write!(self.outbuffer, "{}", &self.device[DevFunc::HideCursor]));
-        }
-
-        self.cursor = c;
-
-        if self.cursor != Cursor::Invalid {
-            try!(self.send_current_cursor());
         }
         Ok(())
     }
+
 
     pub fn get_event(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
@@ -324,29 +319,18 @@ impl Terminal {
         }
     }
 
-    fn send_cursor(&mut self, c: Cursor) -> Result<(), Error> {
-        if let Cursor::Valid(cx, cy) = c {
+    fn send_cursor(&mut self) -> Result<(), Error> {
+        if let Coordinate::Valid((cx, cy)) = self.cursor.pos() {
             try!(write!(self.outbuffer, "\x1b[{};{}H", cy+1, cx+1));
-        } else {
-            try!(write!(self.outbuffer, "\x1b[{};{}H", 0, 0));
         }
         Ok(())
     }
 
-    fn send_current_cursor(&mut self) -> Result<(), Error> {
-        if let Cursor::Valid(cx, cy) = self.cursor {
-            try!(write!(self.outbuffer, "\x1b[{};{}H", cy+1, cx+1));
-        } else {
-            try!(write!(self.outbuffer, "\x1b[{};{}H", 0, 0));
+    fn send_char(&mut self, coord: Coordinate<Pair>, ch: char) -> Result<(), Error> {
+        self.cursor.set_pos(coord);
+        if !self.cursor.is_seq() {
+            try!(self.send_cursor());
         }
-        Ok(())
-    }
-
-    fn send_char(&mut self, cursor: Cursor, ch: char) -> Result<(), Error> {
-        if cursor != self.cursor_last.next() {
-            try!(self.send_cursor(cursor));
-        }
-        self.cursor_last = cursor;
         try!(write!(self.outbuffer, "{}", ch));
         Ok(())
     }
@@ -354,11 +338,9 @@ impl Terminal {
     fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         try!(self.send_style(fg, bg));
         try!(write!(self.outbuffer, "{}", &self.device[DevFunc::ClearScreen]));
-        if self.cursor != Cursor::Invalid {
-            try!(self.send_current_cursor());
-        }
+        try!(self.send_cursor());
         try!(self.flush());
-        self.cursor_last = Cursor::Invalid;
+        self.cursor.invalidate_last_pos();
         Ok(())
     }
 
@@ -475,7 +457,6 @@ impl Terminal {
             Ok(n)
         }
     }
-
 
     fn flush(&mut self) -> Result<(), Error> {
         try!(self.tty.write_all(&self.outbuffer));

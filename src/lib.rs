@@ -17,6 +17,5 @@ pub use core::cellbuffer::{
     Attr,
 };
 pub use core::input::Event;
-pub use core::cursor::Cursor;
 pub use util::error::Error;
 
