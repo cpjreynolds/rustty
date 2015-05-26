@@ -65,8 +65,7 @@ impl IndexMut<usize> for CellBuffer {
 
 /// A single point on a terminal display.
 ///
-/// A `Cell` contains a character and a set of foreground and background `Style`s; it represents a
-/// single point on a terminal display.
+/// A `Cell` contains a character and a set of foreground and background `Style`s.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Cell {
     ch: char,
@@ -111,7 +110,7 @@ impl Cell {
         Cell::new(ch, Style::default(), Style::default())
     }
 
-    /// Creates a new `Cell` with the given styles and a blank `char`.
+    /// Creates a new `Cell` with the given `Style`s and a blank `char`.
     ///
     /// # Examples
     ///
@@ -133,7 +132,7 @@ impl Cell {
     ///
     /// ```
     /// use rustty::Cell;
-    /// 
+    ///
     /// let mut cell = Cell::with_char('x');
     /// assert_eq!(cell.ch(), 'x');
     /// ```
@@ -165,7 +164,7 @@ impl Cell {
     ///
     /// ```
     /// use rustty::{Cell, Style, Attr};
-    /// 
+    ///
     /// let mut cell = Cell::with_styles(Style::with_attr(Attr::Bold), Style::default());
     /// assert_eq!(cell.fg(), Style::with_attr(Attr::Bold));
     /// ```
@@ -179,7 +178,7 @@ impl Cell {
     ///
     /// ```
     /// use rustty::{Cell, Style};
-    /// 
+    ///
     /// let mut cell = Cell::default();
     /// assert_eq!(cell.fg_mut(), &mut Style::default());
     /// ```
@@ -378,7 +377,7 @@ impl Style {
     ///
     /// let mut style = Style::with_attr(Attr::BoldReverse);
     /// assert_eq!(style.attr(), Attr::BoldReverse);
-    /// 
+    ///
     /// style.set_attr(Attr::Underline);
     /// assert_eq!(style.attr(), Attr::Underline);
     /// ```
