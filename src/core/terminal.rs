@@ -143,8 +143,8 @@ impl Terminal {
             cols: 0,
             rows: 0,
             device: device,
-            backbuffer: CellBuffer::with_cell(0, 0, cell),
-            frontbuffer: CellBuffer::with_cell(0, 0, cell),
+            backbuffer: CellBuffer::new(0, 0, cell),
+            frontbuffer: CellBuffer::new(0, 0, cell),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
             eventbuffer: EventBuffer::with_capacity(128),
             lastfg: cell.fg(),
@@ -220,7 +220,7 @@ impl Terminal {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
         }
-        self.backbuffer.clear();
+        self.backbuffer.clear(Cell::default());
         Ok(())
     }
 
@@ -230,7 +230,7 @@ impl Terminal {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
         }
-        self.backbuffer.clear_with_char(ch);
+        self.backbuffer.clear(Cell::with_char(ch));
         Ok(())
     }
 
@@ -240,7 +240,7 @@ impl Terminal {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
         }
-        self.backbuffer.clear_with_styles(fg, bg);
+        self.backbuffer.clear(Cell::with_styles(fg, bg));
         Ok(())
     }
 
@@ -250,7 +250,7 @@ impl Terminal {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
         }
-        self.backbuffer.clear_with_cell(cell);
+        self.backbuffer.clear(cell);
         Ok(())
     }
 
@@ -399,7 +399,7 @@ impl Terminal {
         self.rows = ws.ws_row as usize;
         self.backbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.resize(self.cols, self.rows, blank);
-        self.frontbuffer.clear_with_cell(blank);
+        self.frontbuffer.clear(blank);
         try!(self.send_clear(blank.fg(), blank.bg()));
         Ok(())
     }
