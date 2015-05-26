@@ -4,7 +4,9 @@ rust:
   - nightly
 
 script:
-  - cargo test
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo bench --verbose
   - cargo doc
 
 after_success:
