@@ -49,6 +49,30 @@ type EventBuffer = VecDeque<Event>;
 ///
 /// Only one `Terminal` object can exist at any one time.
 /// When a `Terminal` goes out of scope it resets the underlying terminal to its original state.
+///
+/// # Examples
+///
+/// ```
+/// use rustty::{Terminal, Cell, Style, Color};
+///
+/// // Construct a new Terminal.
+/// let mut term = Terminal::new().unwrap();
+///
+/// // Terminals can be indexed to access specific cells.
+/// // Indices are by column then row, corresponding to a cell's x and y coordinates.
+/// term[0][0] = Cell::with_char('x');
+/// assert_eq!(term[0][0].ch(), 'x');
+///
+/// term[0][1].set_bg(Style::with_color(Color::Red));
+/// assert_eq!(term[0][1].bg(), Style::with_color(Color::Red));
+///
+/// term[0][2].fg_mut().set_color(Color::Blue);
+/// assert_eq!(term[0][2].fg().color(), Color::Blue);
+///
+/// // Relinquish resources upon going out of scope.
+/// drop(term);
+/// # ::std::thread::sleep_ms(100);
+/// ```
 pub struct Terminal {
     orig_tios: termios::Termios, // Original underlying terminal state.
     tty: File, // Underlying terminal file.
@@ -67,22 +91,74 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    /// Creates a new `Terminal` with default settings.
+    /// Constructs a new `Terminal` using the default `Cell` as a blank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    /// assert_eq!(term[0][0].ch(), ' ');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn new() -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::default())
     }
 
-    /// Creates a new `Terminal` with each cell set to the given character.
+    /// Constructs a new `Terminal` with each cell set to the given `char` and the default
+    /// `Style`s.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let mut term = Terminal::with_char('x').unwrap();
+    /// assert_eq!(term[0][0].ch(), 'x');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
     }
 
-    /// Creates a new `Terminal` with each cell set to the given styles.
+    /// Constructs a new `Terminal` with each cell set to the given `Style`s and a blank `char`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell, Style, Color, Attr};
+    ///
+    /// let style1 = Style::with_color(Color::Blue);
+    /// let style2 = Style::with_attr(Attr::Reverse);
+    ///
+    /// let mut term = Terminal::with_styles(style1, style2).unwrap();
+    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[0][0].bg(), Style::with_attr(Attr::Reverse));
+    /// assert_eq!(term[0][0].ch(), ' ');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_styles(fg, bg))
     }
 
-    /// Creates a new `Terminal` with each cell set to the given cell.
+    /// Creates a new `Terminal` using the given cell as a blank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let cell = Cell::with_char('x');
+    ///
+    /// let mut term = Terminal::with_cell(cell).unwrap();
+    /// assert_eq!(term[0][0].ch(), 'x');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
@@ -169,7 +245,18 @@ impl Terminal {
         Ok(terminal)
     }
 
-    /// Send the current backbuffer to be displayed.
+    /// Swaps buffers to display the current backbuffer.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    /// term.swap_buffers().unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn swap_buffers(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -199,22 +286,70 @@ impl Terminal {
         Ok(())
     }
 
-    /// Returns the width of the terminal.
+    /// Returns the width of the terminal in columns.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    /// let width = term.cols();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn cols(&self) -> usize {
         self.cols
     }
 
-    /// Returns the height of the terminal.
+    /// Returns the height of the terminal in rows.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    /// let height = term.rows();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn rows(&self) -> usize {
         self.rows
     }
 
     /// Returns the size of the terminal as (cols, rows).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    /// let size = term.size();
+    /// assert_eq!(size, (term.cols(), term.rows()));
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn size(&self) -> (usize, usize) {
         (self.cols, self.rows)
     }
 
-    /// Clears the internal backbuffer with whitespace.
+    /// Clears the internal backbuffer with the default cell.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let mut term = Terminal::with_char('x').unwrap();
+    /// assert_eq!(term[0][0].ch(), 'x');
+    ///
+    /// term.clear().unwrap();
+    /// assert_eq!(term[0][0].ch(), ' ');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn clear(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -224,7 +359,21 @@ impl Terminal {
         Ok(())
     }
 
-    /// Clears the internal backbuffer with the given character.
+    /// Clears the internal backbuffer with the given `char` and the default `Style`s.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let mut term = Terminal::with_char('x').unwrap();
+    /// assert_eq!(term[0][0].ch(), 'x');
+    ///
+    /// term.clear_with_char('y').unwrap();
+    /// assert_eq!(term[0][0].ch(), 'y');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -234,7 +383,26 @@ impl Terminal {
         Ok(())
     }
 
-    /// Clears the internal backbuffer with the given styles.
+    /// Clears the internal backbuffer with the given `Style`s and a blank `char`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell, Style, Color};
+    ///
+    /// let mut style1 = Style::with_color(Color::Blue);
+    /// let mut style2 = Style::with_color(Color::Red);
+    ///
+    /// let mut term = Terminal::with_styles(style1, style2).unwrap();
+    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Red));
+    ///
+    /// term.clear_with_styles(style2, style1).unwrap();
+    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Red));
+    /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Blue));
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -244,7 +412,24 @@ impl Terminal {
         Ok(())
     }
 
-    /// Clears the internal backbuffer with the given cell.
+    /// Clears the internal backbuffer using the given `Cell` as a blank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let cell1 = Cell::with_char('x');
+    /// let cell2 = Cell::with_char('y');
+    ///
+    /// let mut term = Terminal::with_cell(cell1).unwrap();
+    /// assert_eq!(term[0][0].ch(), 'x');
+    ///
+    /// term.clear_with_cell(cell2).unwrap();
+    /// assert_eq!(term[0][0].ch(), 'y');
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -254,27 +439,125 @@ impl Terminal {
         Ok(())
     }
 
-    /// Checks whether the window size has changed, returning `true` if it has.
+    /// Checks whether the underlying window size has changed and the buffers have not been
+    /// resized yet. If this method returns `true` the next call to `swap_buffers()` or a `clear()`
+    /// method is guaranteed to resize the buffers unless a call to a `try_resize()` method is
+    /// made.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// let will_resize = term.check_resize();
+    ///
+    /// // If will_resize == true, swap_buffers() will resize the buffers.
+    /// term.swap_buffers().unwrap();
+    /// // So will clear().
+    /// term.clear().unwrap();
+    ///
+    /// // Unless try_resize() is called.
+    /// term.try_resize().unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn check_resize(&self) -> bool {
         SIGWINCH_STATUS.load(Ordering::SeqCst)
     }
 
+    /// Resizes the buffers if the underlying terminal window size has changed, using the default
+    /// `Cell` as a blank.
+    ///
+    /// This method will be called automatically on each call to `swap_buffers()` or a `clear()`
+    /// method.
+    ///
+    /// This method is guaranteed to resize the buffers if a call to `check_resize()` returns
+    /// `true` and neither `swap_buffers()` nor a `clear()` method has been called since.
+    ///
+    /// Returns `Some((cols, rows))` if the buffers were resized and `None` if no resize was
+    /// performed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// // If new_size == Some(T) then T is the new size of the terminal.
+    /// // If new_size == None then the terminal has not resized.
+    /// let new_size = term.try_resize().unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::default())
     }
 
+    /// Resizes the buffers if the underlying terminal window size has changed, using the given
+    /// `char` and the default `Style`s as a blank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// // If new_size == Some(T) then T is the new size of the terminal.
+    /// // If new_size == None then the terminal has not resized.
+    /// let new_size = term.try_resize_with_char('x').unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::with_char(ch))
     }
 
+    /// Resizes the buffers if the underlying terminal window size has changed, using the given
+    /// `Style`s and a blank `char` as a blank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Style, Color};
+    ///
+    /// let style = Style::with_color(Color::Red);
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// // If new_size == Some(T) then T is the new size of the terminal.
+    /// // If new_size == None then the terminal has not resized.
+    /// let new_size = term.try_resize_with_styles(style, style).unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn try_resize_with_styles(&mut self,
                                   fg: Style,
                                   bg: Style) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::with_styles(fg, bg))
     }
 
-    /// Performs a resize if the window size has changed, returning the new size. Returns `None`
-    /// if the window size hasn't changed.
+    /// Resizes the buffers if the underlying terminal window size has changed, using the given
+    /// `Cell` as a blank.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::{Terminal, Cell};
+    ///
+    /// let cell = Cell::with_char('x');
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// // If new_size == Some(T) then T is the new size of the terminal.
+    /// // If new_size == None then the terminal has not resized.
+    /// let new_size = term.try_resize_with_cell(cell).unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize_with_cell(cell));
@@ -283,7 +566,19 @@ impl Terminal {
         Ok(None)
     }
 
-    /// Sets the cursor position.
+    /// Sets the cursor position to (x, y).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// term.set_cursor(1, 1).unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         if self.cursor.pos().is_invalid() {
             try!(write!(self.outbuffer, "{}", &self.device[DevFunc::ShowCursor]));
@@ -293,6 +588,19 @@ impl Terminal {
         Ok(())
     }
 
+    /// Hides the cursor.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// term.hide_cursor().unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn hide_cursor(&mut self) -> Result<(), Error> {
         if self.cursor.pos().is_valid() {
             try!(write!(self.outbuffer, "{}", &self.device[DevFunc::HideCursor]));
@@ -301,6 +609,23 @@ impl Terminal {
     }
 
 
+    /// Gets an event from the event stream, waiting a maximum of `timeout_ms` milliseconds.
+    ///
+    /// Returns `Some(Event)` if an event was received within the specified timeout, or None
+    /// otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::thread::sleep_ms;
+    /// use rustty::{Terminal, Event};
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// let evt = term.get_event(1).unwrap();
+    /// # drop(term);
+    /// # ::std::thread::sleep_ms(100);
+    /// ```
     pub fn get_event(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
         if self.eventbuffer.is_empty() {
