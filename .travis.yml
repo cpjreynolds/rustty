@@ -18,4 +18,4 @@ after_success: |
     [ $TRAVIS_PULL_REQUEST = false ] &&
     [ $TRAVIS_RUST_VERSION = stable ] &&
     cargo doc  &&
-    sh etc/deploy-docs.sh
+    sh etc/deploy-docs
