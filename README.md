@@ -1,6 +1,6 @@
 # rustty: a terminal UI library
 
-[![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty)
+[![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty) [![Crates.io](https://img.shields.io/crates/v/rustc-serialize.svg)](https://crates.io/crates/rustty)
 
 - [API Documentation][1]
 - [Intro](#intro)
