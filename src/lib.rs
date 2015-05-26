@@ -1,3 +1,4 @@
+#![feature(test)]
 #![feature(io)]
 #![feature(collections)]
 #![doc(html_root_url = "http://cpjreynolds.github.io/rustty/rustty/index.html")]
@@ -16,6 +17,7 @@
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
 extern crate nix;
+extern crate test;
 
 mod core;
 mod util;
