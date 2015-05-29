@@ -1,15 +1,20 @@
 language: rust
 
 rust:
-  - nightly
+    - nightly
+    - beta
+    - stable
+
+cache:
+    directories:
+        - target
 
 script:
-  - cargo build --verbose
-  - cargo test --verbose
-  - cargo bench --verbose
-  - cargo doc
+    - cargo build --verbose
+    - cargo test --verbose
+    - cargo doc
 
 after_success:
-  test $TRAVIS_PULL_REQUEST == "false" &&
-  test $TRAVIS_BRANCH == "master" &&
-  sh etc/deploy-docs.sh
+    test $TRAVIS_PULL_REQUEST == "false" &&
+    test $TRAVIS_BRANCH == "master" &&
+    sh etc/deploy-docs.sh
