@@ -25,9 +25,7 @@ impl CellBuffer {
     pub fn clear(&mut self, blank: Cell) {
         for col in &mut self.cells {
             for cell in col.iter_mut() {
-                cell.ch = blank.ch;
-                cell.fg = blank.fg;
-                cell.bg = blank.bg;
+                cell = blank;
             }
         }
     }
