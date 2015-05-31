@@ -14,7 +14,6 @@
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
 extern crate nix;
-extern crate test;
 
 mod core;
 mod util;
