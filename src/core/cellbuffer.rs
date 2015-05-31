@@ -11,7 +11,7 @@ use std::iter::Iterator;
 /// `Cellbuffer[1][2]`, corresponds to a row within a column and thus the y-axis.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellBuffer {
-    cells: Vec<Vec<Cell>>,
+    cols: Vec<Vec<Cell>>,
 }
 
 impl CellBuffer {
@@ -19,15 +19,17 @@ impl CellBuffer {
     /// `cell` as a blank.
     pub fn new(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
         CellBuffer {
-            cells: vec![vec![cell; rows]; cols],
+            cols: vec![vec![cell; rows]; cols],
         }
     }
 
     /// Clears a `CellBuffer`, using the given `Cell` as a blank.
     pub fn clear(&mut self, blank: Cell) {
-        for col in &mut self.cells {
+        for col in &mut self.cols {
             for cell in col.iter_mut() {
-                cell = blank;
+                cell.fg = blank.fg;
+                cell.bg = blank.bg;
+                cell.ch = blank.ch;
             }
         }
     }
@@ -35,16 +37,16 @@ impl CellBuffer {
     /// Resizes the `CellBuffer` to the given number of rows and columns, using the given `Cell` as
     /// a blank.
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        i_resize(&mut self, newcols, vec![blank; newrows]);
-        for col in &mut self.cells {
-            i_resize(&mut col, newrows, blank);
+        i_resize(&mut self.cols, newcols, vec![blank; newrows]);
+        for col in &mut self.cols {
+            i_resize(col, newrows, blank);
         }
     }
 }
 
 /// Internal resize function until stdlib implementation is stabilized.
 /// Function is identical, just impatient.
-fn i_resize<T: Clone>(&mut vec: Vec<T>, new_len: usize, blank: T) {
+fn i_resize<T: Clone>(vec: &mut Vec<T>, new_len: usize, blank: T) {
     let len = vec.len();
 
     if new_len > len {
@@ -65,13 +67,13 @@ impl Index<usize> for CellBuffer {
     type Output = Vec<Cell>;
 
     fn index(&self, index: usize) -> &Vec<Cell> {
-        &self.cells[index]
+        &self.cols[index]
     }
 }
 
 impl IndexMut<usize> for CellBuffer {
     fn index_mut(&mut self, index: usize) -> &mut Vec<Cell> {
-        &mut self.cells[index]
+        &mut self.cols[index]
     }
 }
 
