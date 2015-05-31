@@ -1,4 +1,6 @@
 use std::ops::{Index, IndexMut};
+use std::iter;
+use std::iter::Iterator;
 
 /// An array of `Cell`s that represents a terminal display.
 ///
@@ -35,10 +37,22 @@ impl CellBuffer {
     /// Resizes the `CellBuffer` to the given number of rows and columns, using the given `Cell` as
     /// a blank.
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        self.cells.resize(newcols, vec![blank; newrows]);
+        i_resize(&mut self, newcols, vec![blank; newrows]);
         for col in &mut self.cells {
-            col.resize(newrows, blank);
+            i_resize(&mut col, newrows, blank);
         }
+    }
+}
+
+/// Internal resize function until stdlib implementation is stabilized.
+/// Function is identical, just impatient.
+fn i_resize<T: Clone>(&mut vec: Vec<T>, new_len: usize, blank: T) {
+    let len = vec.len();
+
+    if new_len > len {
+        vec.extend(iter::repeat(blank).take(new_len - len));
+    } else {
+        vec.truncate(new_len);
     }
 }
 
