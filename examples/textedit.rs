@@ -58,11 +58,13 @@ fn main() {
                 },
             }
             if cursor.pos.x >= term.cols()-1 {
+                term[cursor.lpos.x][cursor.lpos.y].set_bg(Style::default());
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y += 1;
             }
             if cursor.pos.y >= term.rows()-1 {
+                term[cursor.lpos.x][cursor.lpos.y].set_bg(Style::default());
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y = 0;
