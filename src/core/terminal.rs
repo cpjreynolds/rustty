@@ -25,6 +25,7 @@ use core::device::{Device, DevFunc};
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
 use core::input::Event;
 use core::position::{Position, Coordinate, Cursor, Pair};
+use core::chars::CharStream;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -764,7 +765,8 @@ impl Terminal {
         } else {
             // Input is available from the terminal.
             // Get an iterator of chars over the input stream.
-            let chars = Read::by_ref(&mut self.tty).chars();
+            let tmp_tty = Read::by_ref(&mut self.tty);
+            let chars = CharStream::from_reader(tmp_tty);
             let mut n = 0;
             for chr in chars {
                 let ch = try!(chr);

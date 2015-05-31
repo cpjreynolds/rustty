@@ -3,6 +3,7 @@ use std::convert::From;
 use std::io;
 
 use nix;
+use core::chars::CharStreamError;
 
 /// An error arising from terminal operations.
 ///
@@ -59,10 +60,10 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<io::CharsError> for Error {
-    fn from(err: io::CharsError) -> Self {
+impl From<CharStreamError> for Error {
+    fn from(err: CharStreamError) -> Self {
         Error {
-            description: "utf8 translation error",
+            description: "utf8 encoding error",
             cause: Some(Box::new(err)),
         }
     }

@@ -1,6 +1,4 @@
 #![feature(test)]
-#![feature(io)]
-#![feature(collections)]
 #![doc(html_root_url = "http://cpjreynolds.github.io/rustty/rustty/index.html")]
 
 //! # Rustty

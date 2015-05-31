@@ -3,4 +3,5 @@ pub mod cellbuffer;
 pub mod device;
 pub mod position;
 pub mod input;
+pub mod chars;
 
