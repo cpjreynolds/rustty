@@ -1,6 +1,7 @@
 use std::fmt;
 use std::convert::From;
 use std::io;
+use std::error::Error as StdError;
 
 use nix;
 use core::chars::CharStreamError;
@@ -15,7 +16,7 @@ use core::chars::CharStreamError;
 #[derive(Debug)]
 pub struct Error {
     description: &'static str,
-    cause: Option<Box<::std::error::Error>>,
+    cause: Option<Box<StdError>>,
 }
 
 impl Error {
@@ -28,12 +29,12 @@ impl Error {
     }
 }
 
-impl ::std::error::Error for Error {
+impl StdError for Error {
     fn description(&self) -> &str {
         self.description
     }
 
-    fn cause(&self) -> Option<&::std::error::Error> {
+    fn cause(&self) -> Option<&StdError> {
         if let Some(ref err) = self.cause {
             Some(&**err)
         } else {
@@ -71,7 +72,7 @@ impl From<CharStreamError> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", ::std::error::Error::description(self))
+        write!(f, "{}", StdError::description(self))
     }
 }
 
