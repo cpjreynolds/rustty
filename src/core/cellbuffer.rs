@@ -7,8 +7,8 @@ use std::iter::Iterator;
 /// A `CellBuffer` is a two-dimensional array of `Cell`s, each pair of indices correspond to a
 /// single point on the underlying terminal.
 ///
-/// The first index, `Cellbuffer[x]`, corresponds to a column, and thus the x-axis. The second
-/// index, `Cellbuffer[x][y]`, corresponds to a row within a column and thus the y-axis.
+/// The first index, `Cellbuffer[y]`, corresponds to a row, and thus the y-axis. The second
+/// index, `Cellbuffer[y][x]`, corresponds to a column within a row and thus the x-axis.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellBuffer {
     vec: Vec<Vec<Cell>>,
@@ -19,14 +19,14 @@ impl CellBuffer {
     /// `cell` as a blank.
     pub fn new(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
         CellBuffer {
-            vec: vec![vec![cell; rows]; cols],
+            vec: vec![vec![cell; cols]; rows],
         }
     }
 
     /// Clears a `CellBuffer`, using the given `Cell` as a blank.
     pub fn clear(&mut self, blank: Cell) {
-        for col in &mut self.vec {
-            for cell in col.iter_mut() {
+        for row in &mut self.vec {
+            for cell in row.iter_mut() {
                 cell.fg = blank.fg;
                 cell.bg = blank.bg;
                 cell.ch = blank.ch;
@@ -37,9 +37,9 @@ impl CellBuffer {
     /// Resizes the `CellBuffer` to the given number of rows and columns, using the given `Cell` as
     /// a blank.
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        i_resize(&mut self.vec, newcols, vec![blank; newrows]);
-        for col in &mut self.vec {
-            i_resize(col, newrows, blank);
+        i_resize(&mut self.vec, newrows, vec![blank; newcols]);
+        for row in &mut self.vec {
+            i_resize(row, newcols, blank);
         }
     }
 }
