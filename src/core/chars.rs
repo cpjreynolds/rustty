@@ -4,7 +4,7 @@ use std::io::Read;
 use std::error::Error;
 use std::str;
 
-/// Identical implementation of io::Chars, but available in stable.
+/// std::io::Chars reimplemented here for availability in builds outside of nightly.
 pub struct CharStream<T: Read> {
     inner: T,
 }
