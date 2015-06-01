@@ -267,18 +267,18 @@ impl Terminal {
         // Invalidate the last cursor position.
         self.cursor.invalidate_last_pos();
 
-        for x in 0..self.cols() {
-            if self.frontbuffer[x] == self.backbuffer[x] {
+        for y in 0..self.rows() {
+            if self.frontbuffer[y] == self.backbuffer[y] {
                 continue; // Don't redraw draw columns that haven't changed.
             }
-            for y in 0..self.rows() {
-                if self.frontbuffer[x][y] == self.backbuffer[x][y] {
+            for x in 0..self.cols() {
+                if self.frontbuffer[y][x] == self.backbuffer[y][x] {
                     continue; // Don't redraw cells that haven't changed.
                 } else {
-                    let cell = self.backbuffer[x][y];
+                    let cell = self.backbuffer[y][x];
                     try!(self.send_style(cell.fg(), cell.bg()));
                     try!(self.send_char(Coordinate::Valid((x, y)), cell.ch()));
-                    self.frontbuffer[x][y] = cell;
+                    self.frontbuffer[y][x] = cell;
                 }
             }
         }
