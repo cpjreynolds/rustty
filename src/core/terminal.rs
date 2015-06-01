@@ -48,12 +48,13 @@ type EventBuffer = VecDeque<Event>;
 
 /// A representation of the current terminal window.
 ///
-/// Only one `Terminal` object can exist at any one time.
+/// Only one `Terminal` object can exist at any one time, `Terminal::new()` will return an `Error`
+/// if a `Terminal` object already exists.
 /// When a `Terminal` goes out of scope it resets the underlying terminal to its original state.
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use rustty::{Terminal, Cell, Style, Color};
 ///
 /// // Construct a new Terminal.
@@ -69,10 +70,6 @@ type EventBuffer = VecDeque<Event>;
 ///
 /// term[0][2].fg_mut().set_color(Color::Blue);
 /// assert_eq!(term[0][2].fg().color(), Color::Blue);
-///
-/// // Relinquish resources upon going out of scope.
-/// drop(term);
-/// # ::std::thread::sleep_ms(100);
 /// ```
 pub struct Terminal {
     orig_tios: termios::Termios, // Original underlying terminal state.
@@ -102,7 +99,7 @@ impl Terminal {
     /// let mut term = Terminal::new().unwrap();
     /// assert_eq!(term[0][0].ch(), ' ');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn new() -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::default())
@@ -119,7 +116,7 @@ impl Terminal {
     /// let mut term = Terminal::with_char('x').unwrap();
     /// assert_eq!(term[0][0].ch(), 'x');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
@@ -140,7 +137,7 @@ impl Terminal {
     /// assert_eq!(term[0][0].bg(), Style::with_attr(Attr::Reverse));
     /// assert_eq!(term[0][0].ch(), ' ');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_styles(fg, bg))
@@ -158,7 +155,7 @@ impl Terminal {
     /// let mut term = Terminal::with_cell(cell).unwrap();
     /// assert_eq!(term[0][0].ch(), 'x');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
@@ -256,7 +253,7 @@ impl Terminal {
     /// let mut term = Terminal::new().unwrap();
     /// term.swap_buffers().unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn swap_buffers(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -297,7 +294,7 @@ impl Terminal {
     /// let mut term = Terminal::new().unwrap();
     /// let width = term.cols();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn cols(&self) -> usize {
         self.cols
@@ -313,7 +310,7 @@ impl Terminal {
     /// let mut term = Terminal::new().unwrap();
     /// let height = term.rows();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn rows(&self) -> usize {
         self.rows
@@ -330,7 +327,7 @@ impl Terminal {
     /// let size = term.size();
     /// assert_eq!(size, (term.cols(), term.rows()));
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn size(&self) -> (usize, usize) {
         (self.cols, self.rows)
@@ -349,7 +346,7 @@ impl Terminal {
     /// term.clear().unwrap();
     /// assert_eq!(term[0][0].ch(), ' ');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn clear(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -373,7 +370,7 @@ impl Terminal {
     /// term.clear_with_char('y').unwrap();
     /// assert_eq!(term[0][0].ch(), 'y');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -402,7 +399,7 @@ impl Terminal {
     /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Red));
     /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Blue));
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -429,7 +426,7 @@ impl Terminal {
     /// term.clear_with_cell(cell2).unwrap();
     /// assert_eq!(term[0][0].ch(), 'y');
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -462,7 +459,7 @@ impl Terminal {
     /// // Unless try_resize() is called.
     /// term.try_resize().unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn check_resize(&self) -> bool {
         SIGWINCH_STATUS.load(Ordering::SeqCst)
@@ -491,7 +488,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize().unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::default())
@@ -511,7 +508,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize_with_char('x').unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::with_char(ch))
@@ -533,7 +530,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize_with_styles(style, style).unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn try_resize_with_styles(&mut self,
                                   fg: Style,
@@ -557,7 +554,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize_with_cell(cell).unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -578,7 +575,7 @@ impl Terminal {
     ///
     /// term.set_cursor(1, 1).unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         if self.cursor.pos().is_invalid() {
@@ -600,7 +597,7 @@ impl Terminal {
     ///
     /// term.hide_cursor().unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn hide_cursor(&mut self) -> Result<(), Error> {
         if self.cursor.pos().is_valid() {
@@ -625,7 +622,7 @@ impl Terminal {
     ///
     /// let evt = term.get_event(1).unwrap();
     /// # drop(term);
-    /// # ::std::thread::sleep_ms(100);
+    /// # ::std::thread::sleep_ms(200);
     /// ```
     pub fn get_event(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
