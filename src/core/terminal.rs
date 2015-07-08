@@ -571,6 +571,9 @@ impl Terminal {
 
     /// Gets an event from the event stream, waiting a maximum of `timeout_ms` milliseconds.
     ///
+    /// Specifying a `timeout_ms` of -1 causes `get_event()` to block indefinitely, while
+    /// specifying a `timeout_ms` of 0 causes `get_event()` to return immediately.
+    ///
     /// Returns `Some(Event)` if an event was received within the specified timeout, or None
     /// otherwise.
     ///
@@ -584,7 +587,7 @@ impl Terminal {
     ///
     /// let evt = term.get_event(1).unwrap();
     /// ```
-    pub fn get_event(&mut self, timeout_ms: usize) -> Result<Option<Event>, Error> {
+    pub fn get_event(&mut self, timeout_ms: isize) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
         if self.eventbuffer.is_empty() {
             // Event buffer is empty, lets poll the terminal for events.
@@ -691,7 +694,7 @@ impl Terminal {
     /// the specified number of milliseconds for input to become available.
     ///
     /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, timeout_ms: usize) -> Result<usize, Error> {
+    fn read_events(&mut self, timeout_ms: isize) -> Result<usize, Error> {
         // Event vector to pass to kernel.
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
