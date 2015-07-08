@@ -11,5 +11,5 @@ license = "MIT"
 keywords = ["terminal", "ui", "tui", "console", "tty"]
 
 [dependencies]
-nix = "0.3.6"
+nix = "0.3.8"
 
