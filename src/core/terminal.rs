@@ -20,12 +20,14 @@ use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
 use nix::errno::Errno;
 
-use util::error::Error;
-use core::device::{Device, DevFunc};
+use util::errors::Error;
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
 use core::input::Event;
 use core::position::{Position, Coordinate, Cursor, Pair};
-use core::chars::CharStream;
+use core::driver::{
+    Cap,
+    Driver,
+};
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -35,11 +37,9 @@ static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 /// Reset to false when terminal object goes out of scope.
 static RUSTTY_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
-/// Constant for TIOCGWINSZ syscall on OS X.
+/// TIOCGWINSZ constant.
 #[cfg(target_os="macos")]
 const TIOCGWINSZ: u64 = 0x40087468;
-
-/// Constant for TIOCGWINSZ syscall on Linux.
 #[cfg(target_os="linux")]
 const TIOCGWINSZ: u64 = 0x00005413;
 
@@ -78,7 +78,7 @@ pub struct Terminal {
     epfd: RawFd, // Epoll file descriptor.
     cols: usize, // Number of columns in the terminal window.
     rows: usize, // Number of rows in the terminal window.
-    device: &'static Device, // Underlying terminal device (xterm, gnome, etc.).
+    driver: Driver,
     backbuffer: CellBuffer, // Internal backbuffer.
     frontbuffer: CellBuffer, // Internal frontbuffer.
     outbuffer: OutBuffer, // Internal output buffer.
@@ -155,8 +155,7 @@ impl Terminal {
             return Err(Error::new("Rustty already initialized"))
         }
 
-        // Return the device for the user's terminal.
-        let device = try!(Device::new());
+        let driver = try!(Driver::new());
 
         // Open the terminal file for the controlling process.
         let tty = try!(OpenOptions::new()
@@ -208,7 +207,7 @@ impl Terminal {
             epfd: epfd,
             cols: 0,
             rows: 0,
-            device: device,
+            driver: driver,
             backbuffer: CellBuffer::new(0, 0, cell),
             frontbuffer: CellBuffer::new(0, 0, cell),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
@@ -219,13 +218,10 @@ impl Terminal {
         };
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
-        try!(write!(terminal.outbuffer, "{}", &terminal.device[DevFunc::EnterCa]));
-
-        // Enter keypad. Writes the control code to the output buffer.
-        try!(write!(terminal.outbuffer, "{}", &terminal.device[DevFunc::EnterKeypad]));
+        try!(terminal.outbuffer.write_all(&terminal.driver.get(Cap::EnterCa)));
 
         // Hide cursor. Writes the control code to the output buffer.
-        try!(write!(terminal.outbuffer, "{}", &terminal.device[DevFunc::HideCursor]));
+        try!(terminal.outbuffer.write_all(&terminal.driver.get(Cap::HideCursor)));
 
         // Resize the buffers to the size of the underlying terminals. Using the given cell as a
         // blank.
@@ -543,7 +539,7 @@ impl Terminal {
     /// ```
     pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         if self.cursor.pos().is_invalid() {
-            try!(write!(self.outbuffer, "{}", &self.device[DevFunc::ShowCursor]));
+            try!(self.outbuffer.write_all(&self.driver.get(Cap::ShowCursor)));
         }
         self.cursor.set_pos(Coordinate::Valid((x, y)));
         try!(self.send_cursor());
@@ -563,7 +559,7 @@ impl Terminal {
     /// ```
     pub fn hide_cursor(&mut self) -> Result<(), Error> {
         if self.cursor.pos().is_valid() {
-            try!(write!(self.outbuffer, "{}", &self.device[DevFunc::HideCursor]));
+            try!(self.outbuffer.write_all(&self.driver.get(Cap::HideCursor)));
         }
         Ok(())
     }
@@ -623,7 +619,7 @@ impl Terminal {
 
     fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         try!(self.send_style(fg, bg));
-        try!(write!(self.outbuffer, "{}", &self.device[DevFunc::ClearScreen]));
+        try!(self.outbuffer.write_all(&self.driver.get(Cap::Clear)));
         try!(self.send_cursor());
         try!(self.flush());
         self.cursor.invalidate_last_pos();
@@ -632,19 +628,19 @@ impl Terminal {
 
     fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         if fg != self.lastfg || bg != self.lastbg {
-            try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Sgr0]));
+            try!(self.outbuffer.write_all(&self.driver.get(Cap::Reset)));
 
             match fg.attr() {
-                Attr::Bold => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Bold])),
-                Attr::Underline => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Underline])),
-                Attr::Reverse => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Reverse])),
+                Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(Cap::Bold))),
+                Attr::Underline => try!(self.outbuffer.write_all(&self.driver.get(Cap::Underline))),
+                Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(Cap::Reverse))),
                 _ => {},
             }
 
             match bg.attr() {
-                Attr::Bold => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Blink])),
+                Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(Cap::Blink))),
                 Attr::Underline => {},
-                Attr::Reverse => try!(write!(self.outbuffer, "{}", &self.device[DevFunc::Reverse])),
+                Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(Cap::Reverse))),
                 _ => {},
             }
 
@@ -659,13 +655,13 @@ impl Terminal {
         match fgcol {
             Color::Default => {},
             fgc @ _ => {
-                try!(write!(self.outbuffer, "\x1b[38;5;{}m", fgc.as_byte()));
+                try!(self.outbuffer.write_all(&self.driver.get(Cap::SetFg(fgc.as_byte()))));
             },
         }
         match bgcol {
             Color::Default => {},
             bgc @ _ => {
-                try!(write!(self.outbuffer, "\x1b[48;5;{}m", bgc.as_byte()));
+                try!(self.outbuffer.write_all(&self.driver.get(Cap::SetBg(bgc.as_byte()))));
             },
         }
         Ok(())
@@ -725,11 +721,10 @@ impl Terminal {
         } else {
             // Input is available from the terminal.
             // Get an iterator of chars over the input stream.
-            let tmp_tty = Read::by_ref(&mut self.tty);
-            let chars = CharStream::from_reader(tmp_tty);
+            let mut buf = String::new();
+            try!(self.tty.read_to_string(&mut buf));
             let mut n = 0;
-            for chr in chars {
-                let ch = try!(chr);
+            for ch in buf.chars() {
                 // Push each character onto the event queue and increment the count.
                 self.eventbuffer.push_back(Event::Key(ch));
                 n += 1;
@@ -761,12 +756,10 @@ impl IndexMut<usize> for Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        write!(self.outbuffer, "{}", &self.device[DevFunc::ShowCursor]).unwrap();
-        write!(self.outbuffer, "{}", &self.device[DevFunc::Sgr0]).unwrap();
-        write!(self.outbuffer, "{}", &self.device[DevFunc::ClearScreen]).unwrap();
-        write!(self.outbuffer, "{}", &self.device[DevFunc::ExitCa]).unwrap();
-        write!(self.outbuffer, "{}", &self.device[DevFunc::ExitKeypad]).unwrap();
-        write!(self.outbuffer, "{}", &self.device[DevFunc::ExitMouse]).unwrap();
+        self.outbuffer.write_all(&self.driver.get(Cap::ShowCursor)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(Cap::Reset)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(Cap::Clear)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(Cap::ExitCa)).unwrap();
         self.flush().unwrap();
         termios::tcsetattr(self.rawtty, SetArg::TCSAFLUSH, &self.orig_tios).unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);

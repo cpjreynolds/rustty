@@ -1,7 +1,9 @@
 pub mod terminal;
 pub mod cellbuffer;
-pub mod device;
+pub mod driver;
 pub mod position;
 pub mod input;
-pub mod chars;
 
+macro_rules! write_all {
+    ( $dst:expr, $src:expr ) => ( $dst.write_all($src) );
+}

@@ -12,4 +12,4 @@ keywords = ["terminal", "ui", "tui", "console", "tty"]
 
 [dependencies]
 nix = "0.3.8"
-
+term = "*"

@@ -14,6 +14,7 @@
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
 extern crate nix;
+extern crate term;
 
 mod core;
 mod util;
@@ -26,5 +27,5 @@ pub use core::cellbuffer::{
     Attr,
 };
 pub use core::input::Event;
-pub use util::error::Error;
+pub use util::errors::Error;
 
