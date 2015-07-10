@@ -52,7 +52,7 @@ pub enum Cap {
     ExitCa,
     ShowCursor,
     HideCursor,
-    SetCursor(i16, i16),
+    SetCursor(usize, usize),
     Clear,
     Reset,
     Underline,
@@ -100,13 +100,15 @@ impl Driver {
         })
     }
 
-    // get() will not return an error, and theoretically should never panic.
+    // Processes a capability and returns the device specific escape sequence.
+    //
+    // process() will not return an error, and theoretically should never panic.
     //
     // The pre-flight checks on initialization of `Driver` ensure that every capability is present,
     // thus the `HashMap` retrieval should never fail.
     // Furthermore the `expand()` routine, given the input we pass it, should never fail either.
     // This can be verified in the source of the `term` crate.
-    pub fn get(&self, cap_request: Cap) -> Vec<u8> {
+    pub fn process(&self, cap_request: Cap) -> Vec<u8> {
         let capname = cap_request.resolve();
         let cap = self.tinfo.strings.get(capname).unwrap();
 
@@ -117,7 +119,7 @@ impl Driver {
                 parm::expand(cap, params, &mut vars).unwrap()
             },
             Cap::SetCursor(x, y) => {
-                let params = &[Param::Number(x), Param::Number(y)];
+                let params = &[Param::Number(y as i16), Param::Number(x as i16)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
             },
