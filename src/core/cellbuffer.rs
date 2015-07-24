@@ -12,6 +12,7 @@ use std::iter::Iterator;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellBuffer {
     vec: Vec<Vec<Cell>>,
+    dummy_cell: Cell, // cell for out of bounds access
 }
 
 impl CellBuffer {
@@ -20,6 +21,7 @@ impl CellBuffer {
     pub fn new(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
         CellBuffer {
             vec: vec![vec![cell; cols]; rows],
+            dummy_cell: cell,
         }
     }
 
@@ -69,11 +71,42 @@ impl Index<usize> for CellBuffer {
     }
 }
 
+impl Index<(usize, usize)> for CellBuffer {
+    type Output = Cell;
+
+    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
+        let (y, x) = index;
+        if y >= self.vec.len() {
+            return &self.dummy_cell
+        }
+        let row = &self.vec[y];
+        if x >= row.len() {
+            return &self.dummy_cell
+        }
+        &row[x]
+    }
+}
+
 impl IndexMut<usize> for CellBuffer {
     fn index_mut(&mut self, index: usize) -> &mut Vec<Cell> {
         &mut self.vec[index]
     }
 }
+
+impl IndexMut<(usize, usize)> for CellBuffer {
+    fn index_mut(&mut self, index: (usize, usize)) -> &mut Cell {
+        let (y, x) = index;
+        if y >= self.vec.len() {
+            return &mut self.dummy_cell
+        }
+        let mut row = &mut self.vec[y];
+        if x >= row.len() {
+            return &mut self.dummy_cell
+        }
+        &mut row[x]
+    }
+}
+
 
 /// A single point on a terminal display.
 ///
