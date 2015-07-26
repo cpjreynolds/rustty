@@ -47,7 +47,7 @@ static CAP_TABLE: &'static [&'static str] = &[
 // to take advantage of compile-time type-checking instead of hoping capability names are correct.
 // This allows us to guarantee that driver accesses will succeed. In addition, using an enum means
 // Driver doesn't need hard-coded methods for each capability we want to use.
-pub enum Cap {
+pub enum DevFn {
     EnterCa,
     ExitCa,
     ShowCursor,
@@ -63,38 +63,63 @@ pub enum Cap {
     SetBg(u8),
 }
 
-impl Cap {
+impl DevFn {
     fn resolve(&self) -> &'static str {
         match *self {
-            Cap::EnterCa => ENTER_CA,
-            Cap::ExitCa => EXIT_CA,
-            Cap::ShowCursor => SHOW_CURSOR,
-            Cap::HideCursor => HIDE_CURSOR,
-            Cap::SetCursor(..) => SET_CURSOR,
-            Cap::Clear => CLEAR,
-            Cap::Reset => RESET,
-            Cap::Underline => UNDERLINE,
-            Cap::Bold => BOLD,
-            Cap::Blink => BLINK,
-            Cap::Reverse => REVERSE,
-            Cap::SetFg(..) => SETFG,
-            Cap::SetBg(..) => SETBG,
+            DevFn::EnterCa => ENTER_CA,
+            DevFn::ExitCa => EXIT_CA,
+            DevFn::ShowCursor => SHOW_CURSOR,
+            DevFn::HideCursor => HIDE_CURSOR,
+            DevFn::SetCursor(..) => SET_CURSOR,
+            DevFn::Clear => CLEAR,
+            DevFn::Reset => RESET,
+            DevFn::Underline => UNDERLINE,
+            DevFn::Bold => BOLD,
+            DevFn::Blink => BLINK,
+            DevFn::Reverse => REVERSE,
+            DevFn::SetFg(..) => SETFG,
+            DevFn::SetBg(..) => SETBG,
         }
     }
 }
 
 pub struct Driver {
-    tinfo: TermInfo,
+    tinfo: &'static TermInfo,
+}
+
+lazy_static! {
+    static ref TINFO: TermInfo = {
+        TermInfo::from_env().unwrap_or({
+            TermInfo {
+                names: Default::default(),
+                bools: Default::default(),
+                numbers: Default::default(),
+                strings: Default::default(),
+            }
+        })
+    };
+}
+
+fn get_tinfo() -> Result<&'static TermInfo> {
+    if let Err(e) = validate_tinfo(&*TINFO) {
+        Err(e)
+    } else {
+        Ok(&*TINFO)
+    }
+}
+
+fn validate_tinfo(tinfo: &TermInfo) -> Result<()> {
+    for capname in CAP_TABLE {
+        if !tinfo.strings.contains_key(*capname) {
+            return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
+        }
+    }
+    Ok(())
 }
 
 impl Driver {
     pub fn new() -> Result<Driver> {
-        let tinfo = try!(TermInfo::from_env());
-        for capname in CAP_TABLE {
-            if !tinfo.strings.contains_key(*capname) {
-                return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
-            }
-        }
+        let tinfo = try!(get_tinfo());
         Ok(Driver {
             tinfo: tinfo,
         })
@@ -108,17 +133,17 @@ impl Driver {
     // thus the `HashMap` retrieval should never fail.
     // Furthermore the `expand()` routine, given the input we pass it, should never fail either.
     // This can be verified in the source of the `term` crate.
-    pub fn process(&self, cap_request: Cap) -> Vec<u8> {
+    pub fn process(&self, cap_request: DevFn) -> Vec<u8> {
         let capname = cap_request.resolve();
         let cap = self.tinfo.strings.get(capname).unwrap();
 
         match cap_request {
-            Cap::SetFg(attr) | Cap::SetBg(attr) => {
+            DevFn::SetFg(attr) | DevFn::SetBg(attr) => {
                 let params = &[Param::Number(attr as i16)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
             },
-            Cap::SetCursor(x, y) => {
+            DevFn::SetCursor(x, y) => {
                 let params = &[Param::Number(y as i16), Param::Number(x as i16)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
