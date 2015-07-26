@@ -61,15 +61,15 @@ type EventBuffer = VecDeque<Event>;
 /// let mut term = Terminal::new().unwrap();
 ///
 /// // Terminals can be indexed to access specific cells.
-/// // Indices are by column then row, corresponding to a cell's x and y coordinates.
-/// term[0][0] = Cell::with_char('x');
-/// assert_eq!(term[0][0].ch(), 'x');
+/// // Indices are by row then column, corresponding to a cell's y and x coordinates.
+/// term[(0, 0)] = Cell::with_char('x');
+/// assert_eq!(term[(0, 0)].ch(), 'x');
 ///
-/// term[0][1].set_bg(Style::with_color(Color::Red));
-/// assert_eq!(term[0][1].bg(), Style::with_color(Color::Red));
+/// term[(0, 1)].set_bg(Style::with_color(Color::Red));
+/// assert_eq!(term[(0, 1)].bg(), Style::with_color(Color::Red));
 ///
-/// term[0][2].fg_mut().set_color(Color::Blue);
-/// assert_eq!(term[0][2].fg().color(), Color::Blue);
+/// term[(0, 2)].fg_mut().set_color(Color::Blue);
+/// assert_eq!(term[(0, 2)].fg().color(), Color::Blue);
 /// ```
 pub struct Terminal {
     orig_tios: termios::Termios, // Original underlying terminal state.
@@ -748,8 +748,22 @@ impl Index<usize> for Terminal {
     }
 }
 
+impl Index<(usize, usize)> for Terminal {
+    type Output = Cell;
+
+    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
+        &self.backbuffer[index]
+    }
+}
+
 impl IndexMut<usize> for Terminal {
     fn index_mut(&mut self, index: usize) -> &mut Vec<Cell> {
+        &mut self.backbuffer[index]
+    }
+}
+
+impl IndexMut<(usize, usize)> for Terminal {
+    fn index_mut(&mut self, index: (usize, usize)) -> &mut Cell {
         &mut self.backbuffer[index]
     }
 }
