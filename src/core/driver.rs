@@ -10,7 +10,7 @@ use term::terminfo::parm::{
     Variables,
 };
 
-// String constants correspond to terminfo capnames and are used internally for name resolution.
+// String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
 const EXIT_CA: &'static str = "rmcup";
 const SHOW_CURSOR: &'static str = "cnorm";
@@ -25,9 +25,12 @@ const REVERSE: &'static str = "rev";
 const SETFG: &'static str = "setaf";
 const SETBG: &'static str = "setab";
 
-// Array of required capabilities, used as an iterator on startup to ensure all required
-// functionality is present.
-static CAP_TABLE: &'static [&'static str] = &[
+// Array of terminal capabilities. Used as an iterator to test for functionality.
+//
+// At the moment all functionality is required, however in the future we should implement optional
+// functionality checks so the absence of underlining or reverse video doesn't cause initialization
+// to fail.
+static CAPABILITIES: &'static [&'static str] = &[
     ENTER_CA,
     EXIT_CA,
     SHOW_CURSOR,
@@ -44,7 +47,7 @@ static CAP_TABLE: &'static [&'static str] = &[
 
 // Driver capabilities are an enum instead of string constants (there are string constants private
 // to the module however, those are only used for naming convenience and disambiguation)
-// to take advantage of compile-time type-checking instead of hoping capability names are correct.
+// to take advantage of compile-time type-checking instead of hoping invalid strings aren't passed.
 // This allows us to guarantee that driver accesses will succeed. In addition, using an enum means
 // Driver doesn't need hard-coded methods for each capability we want to use.
 pub enum DevFn {
@@ -64,7 +67,7 @@ pub enum DevFn {
 }
 
 impl DevFn {
-    fn resolve(&self) -> &'static str {
+    fn as_str(&self) -> &'static str {
         match *self {
             DevFn::EnterCa => ENTER_CA,
             DevFn::ExitCa => EXIT_CA,
@@ -109,7 +112,7 @@ fn get_tinfo() -> Result<&'static TermInfo> {
 }
 
 fn validate_tinfo(tinfo: &TermInfo) -> Result<()> {
-    for capname in CAP_TABLE {
+    for capname in CAPABILITIES {
         if !tinfo.strings.contains_key(*capname) {
             return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
         }
@@ -133,11 +136,11 @@ impl Driver {
     // thus the `HashMap` retrieval should never fail.
     // Furthermore the `expand()` routine, given the input we pass it, should never fail either.
     // This can be verified in the source of the `term` crate.
-    pub fn process(&self, cap_request: DevFn) -> Vec<u8> {
-        let capname = cap_request.resolve();
+    pub fn process(&self, dfn: DevFn) -> Vec<u8> {
+        let capname = dfn.as_str();
         let cap = self.tinfo.strings.get(capname).unwrap();
 
-        match cap_request {
+        match dfn {
             DevFn::SetFg(attr) | DevFn::SetBg(attr) => {
                 let params = &[Param::Number(attr as i16)];
                 let mut vars = Variables::new();
