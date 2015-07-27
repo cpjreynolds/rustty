@@ -11,5 +11,6 @@ license = "MIT"
 keywords = ["terminal", "ui", "tui", "console", "tty"]
 
 [dependencies]
-nix = "0.3.8"
-term = "*"
+nix = "0.3.9"
+term = "0.2.11"
+lazy_static = "0.1.12"

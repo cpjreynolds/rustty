@@ -10,7 +10,7 @@ use term::terminfo::parm::{
     Variables,
 };
 
-// String constants correspond to terminfo capnames and are used internally for name resolution.
+// String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
 const EXIT_CA: &'static str = "rmcup";
 const SHOW_CURSOR: &'static str = "cnorm";
@@ -25,9 +25,12 @@ const REVERSE: &'static str = "rev";
 const SETFG: &'static str = "setaf";
 const SETBG: &'static str = "setab";
 
-// Array of required capabilities, used as an iterator on startup to ensure all required
-// functionality is present.
-static CAP_TABLE: &'static [&'static str] = &[
+// Array of terminal capabilities. Used as an iterator to test for functionality.
+//
+// At the moment all functionality is required, however in the future we should implement optional
+// functionality checks so the absence of underlining or reverse video doesn't cause initialization
+// to fail.
+static CAPABILITIES: &'static [&'static str] = &[
     ENTER_CA,
     EXIT_CA,
     SHOW_CURSOR,
@@ -44,10 +47,10 @@ static CAP_TABLE: &'static [&'static str] = &[
 
 // Driver capabilities are an enum instead of string constants (there are string constants private
 // to the module however, those are only used for naming convenience and disambiguation)
-// to take advantage of compile-time type-checking instead of hoping capability names are correct.
+// to take advantage of compile-time type-checking instead of hoping invalid strings aren't passed.
 // This allows us to guarantee that driver accesses will succeed. In addition, using an enum means
 // Driver doesn't need hard-coded methods for each capability we want to use.
-pub enum Cap {
+pub enum DevFn {
     EnterCa,
     ExitCa,
     ShowCursor,
@@ -63,62 +66,92 @@ pub enum Cap {
     SetBg(u8),
 }
 
-impl Cap {
-    fn resolve(&self) -> &'static str {
+impl DevFn {
+    fn as_str(&self) -> &'static str {
         match *self {
-            Cap::EnterCa => ENTER_CA,
-            Cap::ExitCa => EXIT_CA,
-            Cap::ShowCursor => SHOW_CURSOR,
-            Cap::HideCursor => HIDE_CURSOR,
-            Cap::SetCursor(..) => SET_CURSOR,
-            Cap::Clear => CLEAR,
-            Cap::Reset => RESET,
-            Cap::Underline => UNDERLINE,
-            Cap::Bold => BOLD,
-            Cap::Blink => BLINK,
-            Cap::Reverse => REVERSE,
-            Cap::SetFg(..) => SETFG,
-            Cap::SetBg(..) => SETBG,
+            DevFn::EnterCa => ENTER_CA,
+            DevFn::ExitCa => EXIT_CA,
+            DevFn::ShowCursor => SHOW_CURSOR,
+            DevFn::HideCursor => HIDE_CURSOR,
+            DevFn::SetCursor(..) => SET_CURSOR,
+            DevFn::Clear => CLEAR,
+            DevFn::Reset => RESET,
+            DevFn::Underline => UNDERLINE,
+            DevFn::Bold => BOLD,
+            DevFn::Blink => BLINK,
+            DevFn::Reverse => REVERSE,
+            DevFn::SetFg(..) => SETFG,
+            DevFn::SetBg(..) => SETBG,
         }
     }
 }
 
 pub struct Driver {
-    tinfo: TermInfo,
+    tinfo: &'static TermInfo,
+}
+
+lazy_static! {
+    static ref TINFO: TermInfo = {
+        TermInfo::from_env().unwrap_or({
+            TermInfo {
+                names: Default::default(),
+                bools: Default::default(),
+                numbers: Default::default(),
+                strings: Default::default(),
+            }
+        })
+    };
+}
+
+// Validates and returns a reference to the terminfo database.
+//
+// If this function returns Ok(..), the contained terminfo database is guaranteed to have the
+// functionality found in CAPABILITIES.
+//
+// If this function returns Err(..), the terminfo database did not contain all the required
+// functionality; the error returned will provide more specific detail.
+fn get_tinfo() -> Result<&'static TermInfo> {
+    let tinfo = &*TINFO;
+
+    for capname in CAPABILITIES {
+        if !tinfo.strings.contains_key(*capname) {
+            return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
+        }
+    }
+    Ok(tinfo)
 }
 
 impl Driver {
+    // Creates a new `Driver`
+    //
+    // If successful, the terminfo database is guaranteed to contain all capabilities we support.
     pub fn new() -> Result<Driver> {
-        let tinfo = try!(TermInfo::from_env());
-        for capname in CAP_TABLE {
-            if !tinfo.strings.contains_key(*capname) {
-                return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
-            }
-        }
+        let tinfo = try!(get_tinfo());
         Ok(Driver {
             tinfo: tinfo,
         })
     }
 
-    // Processes a capability and returns the device specific escape sequence.
+    // Returns the device specific escape sequence for the given `DevFn`.
     //
-    // process() will not return an error, and theoretically should never panic.
+    // get() will not return an error, and (in theory) should never panic. The `DevFn` enum
+    // restricts possible inputs to a subset that will not fail when passed to `parm::expand()`.
+    // This can be verified by examining the source of the `parm::expand()` function in the `term`
+    // crate.
     //
-    // The pre-flight checks on initialization of `Driver` ensure that every capability is present,
-    // thus the `HashMap` retrieval should never fail.
-    // Furthermore the `expand()` routine, given the input we pass it, should never fail either.
-    // This can be verified in the source of the `term` crate.
-    pub fn process(&self, cap_request: Cap) -> Vec<u8> {
-        let capname = cap_request.resolve();
+    // Furthermore, the pre-flight checks on initialization of `Driver` ensure that every
+    // capability is present, thus the call to `Hashmap::get()` should never fail.
+    pub fn get(&self, dfn: DevFn) -> Vec<u8> {
+        let capname = dfn.as_str();
         let cap = self.tinfo.strings.get(capname).unwrap();
 
-        match cap_request {
-            Cap::SetFg(attr) | Cap::SetBg(attr) => {
+        match dfn {
+            DevFn::SetFg(attr) | DevFn::SetBg(attr) => {
                 let params = &[Param::Number(attr as i16)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
             },
-            Cap::SetCursor(x, y) => {
+            DevFn::SetCursor(x, y) => {
                 let params = &[Param::Number(y as i16), Param::Number(x as i16)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
