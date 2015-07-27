@@ -115,7 +115,7 @@ fn get_tinfo() -> Result<&'static TermInfo> {
 
     for capname in CAPABILITIES {
         if !tinfo.strings.contains_key(*capname) {
-            return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
+            return Err(Error::new(format!("terminal missing capability: '{}'", capname)));
         }
     }
     Ok(tinfo)
