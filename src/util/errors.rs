@@ -11,10 +11,6 @@ pub type Result<T> = result::Result<T, Error>;
 /// An error arising from terminal operations.
 ///
 /// The lower-level cause of the error, if any, will be returned by calling `cause()`.
-///
-/// **Note:** Errors arising from system calls will return `None` when calling `cause()` as `nix`
-/// errors do not implement `Error`. In this case, `description()` will return the standard `errno`
-/// description.
 #[derive(Debug)]
 pub struct Error {
     err: Box<StdError + Send + Sync>,
