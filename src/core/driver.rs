@@ -103,24 +103,28 @@ lazy_static! {
     };
 }
 
+// Validates and returns a reference to the terminfo database.
+//
+// If this function returns Ok(..), the contained terminfo database is guaranteed to have the
+// functionality found in CAPABILITIES.
+//
+// If this function returns Err(..), the terminfo database did not contain all the required
+// functionality; the error returned will provide more specific detail.
 fn get_tinfo() -> Result<&'static TermInfo> {
-    if let Err(e) = validate_tinfo(&*TINFO) {
-        Err(e)
-    } else {
-        Ok(&*TINFO)
-    }
-}
+    let tinfo = &*TINFO;
 
-fn validate_tinfo(tinfo: &TermInfo) -> Result<()> {
     for capname in CAPABILITIES {
         if !tinfo.strings.contains_key(*capname) {
             return Err(Error::new(&format!("terminal missing capability: '{}'", capname)));
         }
     }
-    Ok(())
+    Ok(tinfo)
 }
 
 impl Driver {
+    // Creates a new `Driver`
+    //
+    // If successful, the terminfo database is guaranteed to contain all capabilities we support.
     pub fn new() -> Result<Driver> {
         let tinfo = try!(get_tinfo());
         Ok(Driver {
@@ -128,15 +132,16 @@ impl Driver {
         })
     }
 
-    // Processes a capability and returns the device specific escape sequence.
+    // Returns the device specific escape sequence for the given `DevFn`.
     //
-    // process() will not return an error, and theoretically should never panic.
+    // get() will not return an error, and (in theory) should never panic. The `DevFn` enum
+    // restricts possible inputs to a subset that will not fail when passed to `parm::expand()`.
+    // This can be verified by examining the source of the `parm::expand()` function in the `term`
+    // crate.
     //
-    // The pre-flight checks on initialization of `Driver` ensure that every capability is present,
-    // thus the `HashMap` retrieval should never fail.
-    // Furthermore the `expand()` routine, given the input we pass it, should never fail either.
-    // This can be verified in the source of the `term` crate.
-    pub fn process(&self, dfn: DevFn) -> Vec<u8> {
+    // Furthermore, the pre-flight checks on initialization of `Driver` ensure that every
+    // capability is present, thus the call to `Hashmap::get()` should never fail.
+    pub fn get(&self, dfn: DevFn) -> Vec<u8> {
         let capname = dfn.as_str();
         let cap = self.tinfo.strings.get(capname).unwrap();
 
