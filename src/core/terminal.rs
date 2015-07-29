@@ -601,6 +601,39 @@ impl Terminal {
         }
     }
 
+    /// Prints a string at the specified position.
+    ///
+    /// This is a shorthand for setting each cell individually. `cell`'s style is going to be
+    /// copied to each destination cell.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rustty::{Cell, Style, Color};
+    ///
+    /// let cell = Cell::with_styles(Style::default(), Style::with_color(Color::Red));
+    /// term.printline_with_cell(12, 42, "foobar", cell);
+    /// ```
+    pub fn printline_with_cell(&mut self, row: usize, col: usize, line: &str, cell: Cell) {
+        let mut mutcell = cell;
+        for (index, ch) in line.chars().enumerate() {
+            let current_col = col + index;
+            if current_col >= self.cols() {
+                break;
+            }
+            mutcell.set_ch(ch);
+            self[(row, current_col)] = mutcell;
+        }
+    }
+
+
+    /// Prints a string at the specified position.
+    ///
+    /// Shorthand for `printline_with_cell(row, col line, Cell::default())`.
+    pub fn printline(&mut self, row: usize, col: usize, line: &str) {
+        self.printline_with_cell(row, col, line, Cell::default());
+    }
+
     fn send_cursor(&mut self) -> Result<(), Error> {
         if let Coordinate::Valid((cx, cy)) = self.cursor.pos() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
