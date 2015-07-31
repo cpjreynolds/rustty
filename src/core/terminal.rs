@@ -608,9 +608,10 @@ impl Terminal {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// use rustty::{Cell, Style, Color};
+    /// ```
+    /// use rustty::{Terminal, Cell, Style, Color};
     ///
+    /// let mut term = Terminal::new().unwrap();
     /// let cell = Cell::with_styles(Style::default(), Style::with_color(Color::Red));
     /// term.printline_with_cell(12, 42, "foobar", cell);
     /// ```
