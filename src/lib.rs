@@ -29,5 +29,8 @@ pub use core::cellbuffer::{
     Attr,
 };
 pub use core::input::Event;
-pub use util::errors::Error;
+pub use util::errors::{
+    Error,
+    Result,
+};
 
