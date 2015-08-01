@@ -28,7 +28,7 @@ fn main() {
         style: Style::with_color(Color::Red),
     };
     let mut term = Terminal::new().unwrap();
-    term[cursor.pos.y][cursor.pos.x].set_bg(cursor.style);
+    term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.style);
     term.swap_buffers().unwrap();
     loop {
         let evt = term.get_event(100).unwrap();
@@ -44,7 +44,7 @@ fn main() {
                     } else {
                         cursor.pos.x -= 1;
                     }
-                    term[cursor.pos.y][cursor.pos.x].set_ch(' ');
+                    term[(cursor.pos.x, cursor.pos.y)].set_ch(' ');
                 },
                 '\r' => {
                     cursor.lpos = cursor.pos;
@@ -52,25 +52,25 @@ fn main() {
                     cursor.pos.y += 1;
                 },
                 c @ _ => {
-                    term[cursor.pos.y][cursor.pos.x].set_ch(c);
+                    term[(cursor.pos.x, cursor.pos.y)].set_ch(c);
                     cursor.lpos = cursor.pos;
                     cursor.pos.x += 1;
                 },
             }
             if cursor.pos.x >= term.cols()-1 {
-                term[cursor.lpos.y][cursor.lpos.x].set_bg(Style::default());
+                term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Style::default());
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y += 1;
             }
             if cursor.pos.y >= term.rows()-1 {
-                term[cursor.lpos.y][cursor.lpos.x].set_bg(Style::default());
+                term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Style::default());
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y = 0;
             }
-            term[cursor.lpos.y][cursor.lpos.x].set_bg(Style::default());
-            term[cursor.pos.y][cursor.pos.x].set_bg(cursor.style);
+            term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Style::default());
+            term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.style);
             term.swap_buffers().unwrap();
         }
     }
