@@ -25,10 +25,7 @@ use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
 use nix::errno::Errno;
 
-use util::errors::{
-    Error,
-    Result,
-};
+use util::errors::Error;
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
 use core::input::Event;
 use core::position::{Position, Coordinate, Cursor, Pair};
@@ -107,7 +104,7 @@ impl Terminal {
     /// let mut term = Terminal::new().unwrap();
     /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
-    pub fn new() -> Result<Terminal> {
+    pub fn new() -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::default())
     }
 
@@ -122,7 +119,7 @@ impl Terminal {
     /// let mut term = Terminal::with_char('x').unwrap();
     /// assert_eq!(term[(0, 0)].ch(), 'x');
     /// ```
-    pub fn with_char(ch: char) -> Result<Terminal> {
+    pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
     }
 
@@ -141,7 +138,7 @@ impl Terminal {
     /// assert_eq!(term[(0, 0)].bg(), Style::with_attr(Attr::Reverse));
     /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
-    pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal> {
+    pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_styles(fg, bg))
     }
 
@@ -157,7 +154,7 @@ impl Terminal {
     /// let mut term = Terminal::with_cell(cell).unwrap();
     /// assert_eq!(term[(0, 0)].ch(), 'x');
     /// ```
-    pub fn with_cell(cell: Cell) -> Result<Terminal> {
+    pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(Error::new("Rustty already initialized"))
@@ -249,7 +246,7 @@ impl Terminal {
     /// let mut term = Terminal::new().unwrap();
     /// term.swap_buffers().unwrap();
     /// ```
-    pub fn swap_buffers(&mut self) -> Result<()> {
+    pub fn swap_buffers(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -331,7 +328,7 @@ impl Terminal {
     /// term.clear().unwrap();
     /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
-    pub fn clear(&mut self) -> Result<()> {
+    pub fn clear(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -353,7 +350,7 @@ impl Terminal {
     /// term.clear_with_char('y').unwrap();
     /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
-    pub fn clear_with_char(&mut self, ch: char) -> Result<()> {
+    pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -380,7 +377,7 @@ impl Terminal {
     /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Red));
     /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Blue));
     /// ```
-    pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<()> {
+    pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -405,7 +402,7 @@ impl Terminal {
     /// term.clear_with_cell(cell2).unwrap();
     /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
-    pub fn clear_with_cell(&mut self, cell: Cell) -> Result<()> {
+    pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -495,7 +492,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize().unwrap();
     /// ```
-    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>> {
+    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::default())
     }
 
@@ -513,7 +510,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize_with_char('x').unwrap();
     /// ```
-    pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>> {
+    pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::with_char(ch))
     }
 
@@ -535,7 +532,7 @@ impl Terminal {
     /// ```
     pub fn try_resize_with_styles(&mut self,
                                   fg: Style,
-                                  bg: Style) -> Result<Option<(usize, usize)>> {
+                                  bg: Style) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::with_styles(fg, bg))
     }
 
@@ -555,7 +552,7 @@ impl Terminal {
     /// // If new_size == None then the terminal has not resized.
     /// let new_size = term.try_resize_with_cell(cell).unwrap();
     /// ```
-    pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>> {
+    pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize_with_cell(cell));
             return Ok(Some((self.cols, self.rows)));
@@ -574,7 +571,7 @@ impl Terminal {
     ///
     /// term.set_cursor(1, 1).unwrap();
     /// ```
-    pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<()> {
+    pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         if self.cursor.pos().is_invalid() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)));
         }
@@ -594,7 +591,7 @@ impl Terminal {
     ///
     /// term.hide_cursor().unwrap();
     /// ```
-    pub fn hide_cursor(&mut self) -> Result<()> {
+    pub fn hide_cursor(&mut self) -> Result<(), Error> {
         if self.cursor.pos().is_valid() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::HideCursor)));
         }
@@ -620,7 +617,7 @@ impl Terminal {
     ///
     /// let evt = term.get_event(1).unwrap();
     /// ```
-    pub fn get_event(&mut self, timeout_ms: isize) -> Result<Option<Event>> {
+    pub fn get_event(&mut self, timeout_ms: isize) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
         if self.eventbuffer.is_empty() {
             // Event buffer is empty, lets poll the terminal for events.
@@ -638,14 +635,14 @@ impl Terminal {
         }
     }
 
-    fn send_cursor(&mut self) -> Result<()> {
+    fn send_cursor(&mut self) -> Result<(), Error> {
         if let Coordinate::Valid((cx, cy)) = self.cursor.pos() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
         }
         Ok(())
     }
 
-    fn send_char(&mut self, coord: Coordinate<Pair>, ch: char) -> Result<()> {
+    fn send_char(&mut self, coord: Coordinate<Pair>, ch: char) -> Result<(), Error> {
         self.cursor.set_pos(coord);
         if !self.cursor.is_seq() {
             try!(self.send_cursor());
@@ -654,7 +651,7 @@ impl Terminal {
         Ok(())
     }
 
-    fn send_clear(&mut self, fg: Style, bg: Style) -> Result<()> {
+    fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         try!(self.send_style(fg, bg));
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
         try!(self.send_cursor());
@@ -663,7 +660,7 @@ impl Terminal {
         Ok(())
     }
 
-    fn send_style(&mut self, fg: Style, bg: Style) -> Result<()> {
+    fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         if fg != self.lastfg || bg != self.lastbg {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
 
@@ -688,7 +685,7 @@ impl Terminal {
         Ok(())
     }
 
-    fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<()> {
+    fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), Error> {
         match fgcol {
             Color::Default => {},
             fgc @ _ => {
@@ -704,12 +701,12 @@ impl Terminal {
         Ok(())
     }
 
-    fn resize(&mut self) -> Result<()> {
+    fn resize(&mut self) -> Result<(), Error> {
         self.resize_with_cell(Cell::default())
     }
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
-    fn resize_with_cell(&mut self, blank: Cell) -> Result<()> {
+    fn resize_with_cell(&mut self, blank: Cell) -> Result<(), Error> {
         let mut ws = WindowSize::new();
         try!(unsafe {
             ioctl::read_into::<WindowSize>(self.rawtty, TIOCGWINSZ, &mut ws)
@@ -727,7 +724,7 @@ impl Terminal {
     /// the specified number of milliseconds for input to become available.
     ///
     /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, timeout_ms: isize) -> Result<usize> {
+    fn read_events(&mut self, timeout_ms: isize) -> Result<usize, Error> {
         // Event vector to pass to kernel.
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
@@ -770,7 +767,7 @@ impl Terminal {
         }
     }
 
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> Result<(), Error> {
         try!(self.tty.write_all(&self.outbuffer));
         self.outbuffer.clear();
         Ok(())
