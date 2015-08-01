@@ -102,7 +102,7 @@ impl Terminal {
     /// use rustty::Terminal;
     ///
     /// let mut term = Terminal::new().unwrap();
-    /// assert_eq!(term[0][0].ch(), ' ');
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn new() -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::default())
@@ -117,7 +117,7 @@ impl Terminal {
     /// use rustty::{Terminal, Cell};
     ///
     /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     /// ```
     pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
@@ -134,9 +134,9 @@ impl Terminal {
     /// let style2 = Style::with_attr(Attr::Reverse);
     ///
     /// let mut term = Terminal::with_styles(style1, style2).unwrap();
-    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Blue));
-    /// assert_eq!(term[0][0].bg(), Style::with_attr(Attr::Reverse));
-    /// assert_eq!(term[0][0].ch(), ' ');
+    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[(0, 0)].bg(), Style::with_attr(Attr::Reverse));
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_styles(fg, bg))
@@ -152,7 +152,7 @@ impl Terminal {
     /// let cell = Cell::with_char('x');
     ///
     /// let mut term = Terminal::with_cell(cell).unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     /// ```
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
@@ -323,10 +323,10 @@ impl Terminal {
     /// use rustty::{Terminal, Cell};
     ///
     /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
     /// term.clear().unwrap();
-    /// assert_eq!(term[0][0].ch(), ' ');
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn clear(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -345,10 +345,10 @@ impl Terminal {
     /// use rustty::{Terminal, Cell};
     ///
     /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
     /// term.clear_with_char('y').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'y');
+    /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
     pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -370,12 +370,12 @@ impl Terminal {
     /// let mut style2 = Style::with_color(Color::Red);
     ///
     /// let mut term = Terminal::with_styles(style1, style2).unwrap();
-    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Blue));
-    /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Red));
+    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Red));
     ///
     /// term.clear_with_styles(style2, style1).unwrap();
-    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Red));
-    /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Red));
+    /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Blue));
     /// ```
     pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -397,10 +397,10 @@ impl Terminal {
     /// let cell2 = Cell::with_char('y');
     ///
     /// let mut term = Terminal::with_cell(cell1).unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
     /// term.clear_with_cell(cell2).unwrap();
-    /// assert_eq!(term[0][0].ch(), 'y');
+    /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
     pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.

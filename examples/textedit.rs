@@ -2,11 +2,9 @@ extern crate rustty;
 
 use rustty::{
     Terminal,
-    Cell,
     Event,
     Style,
     Color,
-    Attr,
 };
 
 struct Cursor {
