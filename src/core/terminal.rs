@@ -1,4 +1,9 @@
-use std::ops::{Index, IndexMut};
+use std::ops::{
+    Index,
+    IndexMut,
+    Deref,
+    DerefMut,
+};
 use std::io::prelude::*;
 use std::fs::OpenOptions;
 use std::fs::File;
@@ -97,7 +102,7 @@ impl Terminal {
     /// use rustty::Terminal;
     ///
     /// let mut term = Terminal::new().unwrap();
-    /// assert_eq!(term[0][0].ch(), ' ');
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn new() -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::default())
@@ -112,7 +117,7 @@ impl Terminal {
     /// use rustty::{Terminal, Cell};
     ///
     /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     /// ```
     pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
@@ -129,9 +134,9 @@ impl Terminal {
     /// let style2 = Style::with_attr(Attr::Reverse);
     ///
     /// let mut term = Terminal::with_styles(style1, style2).unwrap();
-    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Blue));
-    /// assert_eq!(term[0][0].bg(), Style::with_attr(Attr::Reverse));
-    /// assert_eq!(term[0][0].ch(), ' ');
+    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[(0, 0)].bg(), Style::with_attr(Attr::Reverse));
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_styles(fg, bg))
@@ -147,7 +152,7 @@ impl Terminal {
     /// let cell = Cell::with_char('x');
     ///
     /// let mut term = Terminal::with_cell(cell).unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     /// ```
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
@@ -251,17 +256,14 @@ impl Terminal {
         self.cursor.invalidate_last_pos();
 
         for y in 0..self.rows() {
-            if self.frontbuffer[y] == self.backbuffer[y] {
-                continue; // Don't redraw draw columns that haven't changed.
-            }
             for x in 0..self.cols() {
-                if self.frontbuffer[y][x] == self.backbuffer[y][x] {
+                if self.frontbuffer[(x, y)] == self.backbuffer[(x, y)] {
                     continue; // Don't redraw cells that haven't changed.
                 } else {
-                    let cell = self.backbuffer[y][x];
+                    let cell = self.backbuffer[(x, y)];
                     try!(self.send_style(cell.fg(), cell.bg()));
                     try!(self.send_char(Coordinate::Valid((x, y)), cell.ch()));
-                    self.frontbuffer[y][x] = cell;
+                    self.frontbuffer[(x, y)] = cell;
                 }
             }
         }
@@ -321,10 +323,10 @@ impl Terminal {
     /// use rustty::{Terminal, Cell};
     ///
     /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
     /// term.clear().unwrap();
-    /// assert_eq!(term[0][0].ch(), ' ');
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn clear(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -343,10 +345,10 @@ impl Terminal {
     /// use rustty::{Terminal, Cell};
     ///
     /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
     /// term.clear_with_char('y').unwrap();
-    /// assert_eq!(term[0][0].ch(), 'y');
+    /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
     pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -368,12 +370,12 @@ impl Terminal {
     /// let mut style2 = Style::with_color(Color::Red);
     ///
     /// let mut term = Terminal::with_styles(style1, style2).unwrap();
-    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Blue));
-    /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Red));
+    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Red));
     ///
     /// term.clear_with_styles(style2, style1).unwrap();
-    /// assert_eq!(term[0][0].fg(), Style::with_color(Color::Red));
-    /// assert_eq!(term[0][0].bg(), Style::with_color(Color::Blue));
+    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Red));
+    /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Blue));
     /// ```
     pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -395,10 +397,10 @@ impl Terminal {
     /// let cell2 = Cell::with_char('y');
     ///
     /// let mut term = Terminal::with_cell(cell1).unwrap();
-    /// assert_eq!(term[0][0].ch(), 'x');
+    /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
     /// term.clear_with_cell(cell2).unwrap();
-    /// assert_eq!(term[0][0].ch(), 'y');
+    /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
     pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -407,6 +409,38 @@ impl Terminal {
         }
         self.backbuffer.clear(cell);
         Ok(())
+    }
+
+    /// Returns a reference to the `Cell` at the given coordinates, or `None` if the index is out of
+    /// bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rustty::Terminal;
+    /// 
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// let a_cell = term.get(5, 5);
+    /// ```
+    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
+        self.backbuffer.get(x, y)
+    }
+
+    /// Returns a mutable reference to the `Cell` at the given coordinates, or `None` if the index
+    /// is out of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rustty::Terminal;
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    ///
+    /// let a_mut_cell = term.get_mut(5, 5);
+    /// ```
+    pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
+        self.backbuffer.get_mut(x, y)
     }
 
     /// Checks whether the underlying window size has changed and the buffers have not been
@@ -695,7 +729,7 @@ impl Terminal {
         let mut events: Vec<EpollEvent> = Vec::new();
         events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
 
-        let mut nepolls: usize;
+        let nepolls: usize;
         // Because the sigwinch handler will interrupt epoll, if epoll returns EINTR we loop
         // and try again. All other errors will return normally.
         loop {
@@ -740,11 +774,17 @@ impl Terminal {
     }
 }
 
-impl Index<usize> for Terminal {
-    type Output = Vec<Cell>;
+impl Deref for Terminal {
+    type Target = [Cell];
 
-    fn index(&self, index: usize) -> &Vec<Cell> {
-        &self.backbuffer[index]
+    fn deref<'a>(&'a self) -> &'a [Cell] {
+        &self.backbuffer
+    }
+}
+
+impl DerefMut for Terminal {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut [Cell] {
+        &mut self.backbuffer
     }
 }
 
@@ -756,14 +796,8 @@ impl Index<(usize, usize)> for Terminal {
     }
 }
 
-impl IndexMut<usize> for Terminal {
-    fn index_mut(&mut self, index: usize) -> &mut Vec<Cell> {
-        &mut self.backbuffer[index]
-    }
-}
-
 impl IndexMut<(usize, usize)> for Terminal {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Cell {
+    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
         &mut self.backbuffer[index]
     }
 }

@@ -1,6 +1,9 @@
-use std::ops::{Index, IndexMut};
-use std::iter;
-use std::iter::Iterator;
+use std::ops::{
+    Index,
+    IndexMut,
+    Deref,
+    DerefMut,
+};
 
 /// An array of `Cell`s that represents a terminal display.
 ///
@@ -11,8 +14,9 @@ use std::iter::Iterator;
 /// index, `Cellbuffer[y][x]`, corresponds to a column within a row and thus the x-axis.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellBuffer {
-    vec: Vec<Vec<Cell>>,
-    dummy_cell: Cell, // cell for out of bounds access
+    cols: usize,
+    rows: usize,
+    buf: Vec<Cell>,
 }
 
 impl CellBuffer {
@@ -20,39 +24,81 @@ impl CellBuffer {
     /// `cell` as a blank.
     pub fn new(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
         CellBuffer {
-            vec: vec![vec![cell; cols]; rows],
-            dummy_cell: cell,
+            cols: cols,
+            rows: rows,
+            buf: vec![cell; cols * rows],
         }
     }
 
     /// Clears a `CellBuffer`, using the given `Cell` as a blank.
     pub fn clear(&mut self, blank: Cell) {
-        for row in &mut self.vec {
-            for cell in row.iter_mut() {
-                *cell = blank;
-            }
+        for cell in self.buf.iter_mut() {
+            *cell = blank;
+        }
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> Option<&Cell> {
+        if x < self.cols && y < self.rows {
+            let offset = (self.cols * y) + x;
+            self.buf.get(offset)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Cell> {
+        if x < self.cols && y < self.rows {
+            let offset = (self.cols * y) + x;
+            self.buf.get_mut(offset)
+        } else {
+            None
         }
     }
 
     /// Resizes the `CellBuffer` to the given number of rows and columns, using the given `Cell` as
     /// a blank.
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        i_resize(&mut self.vec, newrows, vec![blank; newcols]);
-        for row in &mut self.vec {
-            i_resize(row, newcols, blank);
+        let newlen = newcols * newrows;
+        let mut newbuf: Vec<Cell> = Vec::with_capacity(newlen);
+        for y in 0..newrows {
+            for x in 0..newcols {
+                let cell = self.get(x, y).unwrap_or(&blank);
+                newbuf.push(*cell);
+            }
         }
+        self.buf = newbuf;
+        self.cols = newcols;
+        self.rows = newrows;
     }
 }
 
-/// Internal resize function until stdlib implementation is stabilized.
-/// Function is identical, just impatient.
-fn i_resize<T: Clone>(vec: &mut Vec<T>, new_len: usize, blank: T) {
-    let len = vec.len();
+impl Deref for CellBuffer {
+    type Target = [Cell];
 
-    if new_len > len {
-        vec.extend(iter::repeat(blank).take(new_len - len));
-    } else {
-        vec.truncate(new_len);
+    fn deref<'a>(&'a self) -> &'a [Cell] {
+        &self.buf
+    }
+}
+
+impl DerefMut for CellBuffer {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut [Cell] {
+        &mut self.buf
+    }
+}
+
+impl Index<(usize, usize)> for CellBuffer {
+    type Output = Cell;
+
+    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
+        let (x, y) = index;
+        self.get(x, y).expect("index out of bounds")
+    }
+}
+
+impl IndexMut<(usize, usize)> for CellBuffer {
+    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
+        let (x, y) = index;
+        self.get_mut(x, y).expect("index out of bounds")
     }
 }
 
@@ -62,51 +108,6 @@ impl Default for CellBuffer {
         CellBuffer::new(0, 0, Cell::default())
     }
 }
-
-impl Index<usize> for CellBuffer {
-    type Output = Vec<Cell>;
-
-    fn index(&self, index: usize) -> &Vec<Cell> {
-        &self.vec[index]
-    }
-}
-
-impl Index<(usize, usize)> for CellBuffer {
-    type Output = Cell;
-
-    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
-        let (y, x) = index;
-        if y >= self.vec.len() {
-            return &self.dummy_cell
-        }
-        let row = &self.vec[y];
-        if x >= row.len() {
-            return &self.dummy_cell
-        }
-        &row[x]
-    }
-}
-
-impl IndexMut<usize> for CellBuffer {
-    fn index_mut(&mut self, index: usize) -> &mut Vec<Cell> {
-        &mut self.vec[index]
-    }
-}
-
-impl IndexMut<(usize, usize)> for CellBuffer {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Cell {
-        let (y, x) = index;
-        if y >= self.vec.len() {
-            return &mut self.dummy_cell
-        }
-        let mut row = &mut self.vec[y];
-        if x >= row.len() {
-            return &mut self.dummy_cell
-        }
-        &mut row[x]
-    }
-}
-
 
 /// A single point on a terminal display.
 ///
