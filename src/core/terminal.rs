@@ -11,21 +11,14 @@ use std::os::unix::io::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 
-use nix::sys::termios;
-use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
-use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB, CS8};
-use nix::sys::termios::{VMIN, VTIME};
-use nix::sys::termios::SetArg;
 use nix::sys::signal;
 use nix::sys::signal::{SockFlag, SigSet};
 use nix::sys::signal::signal::SIGWINCH;
-use nix::sys::ioctl;
 use nix::sys::epoll::{epoll_create, epoll_ctl, epoll_wait};
 use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
 use nix::errno::Errno;
 
-use util::errors::Error;
 use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
 use core::input::Event;
 use core::position::{Position, Coordinate, Cursor, Pair};
@@ -33,6 +26,8 @@ use core::driver::{
     DevFn,
     Driver,
 };
+use core::termctl::TermCtl;
+use util::errors::Error;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -41,12 +36,6 @@ static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 /// Set to true on creation of a Terminal object.
 /// Reset to false when terminal object goes out of scope.
 static RUSTTY_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
-
-/// TIOCGWINSZ constant.
-#[cfg(target_os="macos")]
-const TIOCGWINSZ: u64 = 0x40087468;
-#[cfg(target_os="linux")]
-const TIOCGWINSZ: u64 = 0x00005413;
 
 type OutBuffer = Vec<u8>;
 type EventBuffer = VecDeque<Event>;
@@ -77,9 +66,8 @@ type EventBuffer = VecDeque<Event>;
 /// assert_eq!(term[(0, 2)].fg().color(), Color::Blue);
 /// ```
 pub struct Terminal {
-    orig_tios: termios::Termios, // Original underlying terminal state.
+    termctl: TermCtl,
     tty: File, // Underlying terminal file.
-    rawtty: RawFd, // Raw file descriptor of underlying terminal file.
     epfd: RawFd, // Epoll file descriptor.
     cols: usize, // Number of columns in the terminal window.
     rows: usize, // Number of rows in the terminal window.
@@ -168,7 +156,6 @@ impl Terminal {
             .read(true)
             .open("/dev/tty"));
 
-        // Get the raw file descriptor for the terminal file to use with system calls.
         let rawtty = tty.as_raw_fd();
 
         // Set up the signal handler for SIGWINCH, which will notify us when the window size has
@@ -178,25 +165,6 @@ impl Terminal {
             signal::sigaction(SIGWINCH, &sa_winch)
         });
 
-        // Get the original state of the terminal so we can restore it on drop.
-        let orig_tios = try!(termios::tcgetattr(rawtty));
-
-        // Make a mutable clone of the terminal state so we can modify parameters.
-        let mut tios = orig_tios.clone();
-
-        // Set required terminal parameters.
-        tios.c_iflag = tios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP |
-                                        INLCR | IGNCR | ICRNL | IXON);
-        tios.c_oflag = tios.c_oflag & !OPOST;
-        tios.c_lflag = tios.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-        tios.c_cflag = tios.c_cflag & !(CSIZE | PARENB);
-        tios.c_cflag = tios.c_cflag | CS8;
-        tios.c_cc[VMIN] = 0;
-        tios.c_cc[VTIME] = 0;
-
-        // Make the system call to change terminal parameters.
-        try!(termios::tcsetattr(rawtty, SetArg::TCSAFLUSH, &tios));
-
         let epfd = try!(epoll_create());
         let epev = EpollEvent {
             events: epoll::EPOLLIN,
@@ -204,11 +172,14 @@ impl Terminal {
         };
         try!(epoll_ctl(epfd, EpollOp::EpollCtlAdd, rawtty, &epev));
 
+
+        let termctl = try!(TermCtl::new(rawtty));
+        try!(termctl.set());
+
         // Create the terminal object to hold all of our required state.
         let mut terminal = Terminal {
-            orig_tios: orig_tios,
+            termctl: termctl,
             tty: tty,
-            rawtty: rawtty,
             epfd: epfd,
             cols: 0,
             rows: 0,
@@ -418,7 +389,7 @@ impl Terminal {
     ///
     /// ```no_run
     /// use rustty::Terminal;
-    /// 
+    ///
     /// let mut term = Terminal::new().unwrap();
     ///
     /// let a_cell = term.get(5, 5);
@@ -598,7 +569,6 @@ impl Terminal {
         Ok(())
     }
 
-
     /// Gets an event from the event stream, waiting a maximum of `timeout_ms` milliseconds.
     ///
     /// Specifying a `timeout_ms` of -1 causes `get_event()` to block indefinitely, while
@@ -707,12 +677,9 @@ impl Terminal {
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
     fn resize_with_cell(&mut self, blank: Cell) -> Result<(), Error> {
-        let mut ws = WindowSize::new();
-        try!(unsafe {
-            ioctl::read_into::<WindowSize>(self.rawtty, TIOCGWINSZ, &mut ws)
-        });
-        self.cols = ws.ws_col as usize;
-        self.rows = ws.ws_row as usize;
+        let (cols, rows) = try!(self.termctl.window_size());
+        self.cols = cols;
+        self.rows = rows;
         self.backbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.clear(blank);
@@ -809,7 +776,7 @@ impl Drop for Terminal {
         self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
         self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
         self.flush().unwrap();
-        termios::tcsetattr(self.rawtty, SetArg::TCSAFLUSH, &self.orig_tios).unwrap();
+        self.termctl.reset().unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
     }
@@ -818,25 +785,5 @@ impl Drop for Terminal {
 // Sigwinch handler to notify when window has resized.
 extern fn sigwinch_handler(_: i32) {
     SIGWINCH_STATUS.store(true, Ordering::SeqCst);
-}
-
-// Window size struct to pass to the kernel.
-#[repr(C)]
-struct WindowSize {
-    ws_row: u16,
-    ws_col: u16,
-    ws_xpixel: u16,
-    ws_ypixel: u16,
-}
-
-impl WindowSize {
-    fn new() -> WindowSize {
-        WindowSize {
-            ws_row: 0,
-            ws_col: 0,
-            ws_xpixel: 0,
-            ws_ypixel: 0,
-        }
-    }
 }
 
