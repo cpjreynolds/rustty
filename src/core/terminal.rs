@@ -55,7 +55,7 @@ type EventBuffer = VecDeque<Event>;
 /// let mut term = Terminal::new().unwrap();
 ///
 /// // Terminals can be indexed to access specific cells.
-/// // Indices are by row then column, corresponding to a cell's y and x coordinates.
+/// // Indices are by column then row, corresponding to a cell's x and y coordinates.
 /// term[(0, 0)] = Cell::with_char('x');
 /// assert_eq!(term[(0, 0)].ch(), 'x');
 ///
