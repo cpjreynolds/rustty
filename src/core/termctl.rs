@@ -7,14 +7,17 @@ use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB
 use nix::sys::termios::{VMIN, VTIME};
 use nix::sys::termios::SetArg;
 use nix::sys::termios::Termios;
-use nix::sys::ioctl;
+use nix::sys::ioctl::{
+    self,
+    ioctl_op_t,
+};
 
 use util::errors::Error;
 
 #[cfg(target_os = "macos")]
-const TIOCGWINSZ: u64 = 0x40087468;
+const TIOCGWINSZ: ioctl_op_t = 0x40087468;
 #[cfg(target_os = "linux")]
-const TIOCGWINSZ: u64 = 0x00005413;
+const TIOCGWINSZ: ioctl_op_t = 0x00005413;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
