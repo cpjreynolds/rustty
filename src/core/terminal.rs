@@ -19,9 +19,9 @@ use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
 use nix::errno::Errno;
 
-use core::cellbuffer::{CellBuffer, Cell, Style, Color, Attr};
+use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Style, Color, Attr};
 use core::input::Event;
-use core::position::{Position, Coordinate, Cursor, Pair};
+use core::position::{Cursor, Pos, Size, HasSize};
 use core::driver::{
     DevFn,
     Driver,
@@ -233,7 +233,7 @@ impl Terminal {
                 } else {
                     let cell = self.backbuffer[(x, y)];
                     try!(self.send_style(cell.fg(), cell.bg()));
-                    try!(self.send_char(Coordinate::Valid((x, y)), cell.ch()));
+                    try!(self.send_char(Some((x, y)), cell.ch()));
                     self.frontbuffer[(x, y)] = cell;
                 }
             }
@@ -269,21 +269,6 @@ impl Terminal {
     /// ```
     pub fn rows(&self) -> usize {
         self.rows
-    }
-
-    /// Returns the size of the terminal as (cols, rows).
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::Terminal;
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    /// let size = term.size();
-    /// assert_eq!(size, (term.cols(), term.rows()));
-    /// ```
-    pub fn size(&self) -> (usize, usize) {
-        (self.cols, self.rows)
     }
 
     /// Clears the internal backbuffer with the default cell.
@@ -380,38 +365,6 @@ impl Terminal {
         }
         self.backbuffer.clear(cell);
         Ok(())
-    }
-
-    /// Returns a reference to the `Cell` at the given coordinates, or `None` if the index is out of
-    /// bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::Terminal;
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// let a_cell = term.get(5, 5);
-    /// ```
-    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
-        self.backbuffer.get(x, y)
-    }
-
-    /// Returns a mutable reference to the `Cell` at the given coordinates, or `None` if the index
-    /// is out of bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::Terminal;
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// let a_mut_cell = term.get_mut(5, 5);
-    /// ```
-    pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
-        self.backbuffer.get_mut(x, y)
     }
 
     /// Checks whether the underlying window size has changed and the buffers have not been
@@ -543,10 +496,10 @@ impl Terminal {
     /// term.set_cursor(1, 1).unwrap();
     /// ```
     pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
-        if self.cursor.pos().is_invalid() {
+        if self.cursor.pos().is_none() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)));
         }
-        self.cursor.set_pos(Coordinate::Valid((x, y)));
+        self.cursor.set_pos(Some((x, y)));
         try!(self.send_cursor());
         Ok(())
     }
@@ -563,7 +516,7 @@ impl Terminal {
     /// term.hide_cursor().unwrap();
     /// ```
     pub fn hide_cursor(&mut self) -> Result<(), Error> {
-        if self.cursor.pos().is_valid() {
+        if self.cursor.pos().is_some() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::HideCursor)));
         }
         Ok(())
@@ -606,13 +559,13 @@ impl Terminal {
     }
 
     fn send_cursor(&mut self) -> Result<(), Error> {
-        if let Coordinate::Valid((cx, cy)) = self.cursor.pos() {
+        if let Some((cx, cy)) = self.cursor.pos() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
         }
         Ok(())
     }
 
-    fn send_char(&mut self, coord: Coordinate<Pair>, ch: char) -> Result<(), Error> {
+    fn send_char(&mut self, coord: Option<Pos>, ch: char) -> Result<(), Error> {
         self.cursor.set_pos(coord);
         if !self.cursor.is_seq() {
             try!(self.send_cursor());
@@ -741,6 +694,33 @@ impl Terminal {
     }
 }
 
+impl HasSize for Terminal {
+    /// Returns the size of the terminal as (cols, rows).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use rustty::{Terminal, CellAccessor};
+    ///
+    /// let mut term = Terminal::new().unwrap();
+    /// let size = term.size();
+    /// assert_eq!(size, (term.cols(), term.rows()));
+    /// ```
+    fn size(&self) -> Size {
+        (self.cols, self.rows)
+    }
+}
+
+impl CellAccessor for Terminal {
+    fn cellvec(&self) -> &Vec<Cell> {
+        self.backbuffer.cellvec()
+    }
+
+    fn cellvec_mut(&mut self) -> &mut Vec<Cell> {
+        self.backbuffer.cellvec_mut()
+    }
+}
+
 impl Deref for Terminal {
     type Target = [Cell];
 
@@ -755,16 +735,16 @@ impl DerefMut for Terminal {
     }
 }
 
-impl Index<(usize, usize)> for Terminal {
+impl Index<Pos> for Terminal {
     type Output = Cell;
 
-    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
+    fn index<'a>(&'a self, index: Pos) -> &'a Cell {
         &self.backbuffer[index]
     }
 }
 
-impl IndexMut<(usize, usize)> for Terminal {
-    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
+impl IndexMut<Pos> for Terminal {
+    fn index_mut<'a>(&'a mut self, index: Pos) -> &'a mut Cell {
         &mut self.backbuffer[index]
     }
 }
