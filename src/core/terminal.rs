@@ -700,7 +700,7 @@ impl HasSize for Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// use rustty::{Terminal, CellAccessor};
+    /// use rustty::{Terminal, CellAccessor, HasSize};
     ///
     /// let mut term = Terminal::new().unwrap();
     /// let size = term.size();
