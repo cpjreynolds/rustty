@@ -5,39 +5,47 @@ use rustty::{
     Event,
 };
 use rustty::ui::{
-    Widget,
     Painter,
+    Dialog,
+    DialogResult,
     Alignable,
     HorizontalAlign,
     VerticalAlign,
-    create_button,
 };
 
-fn create_maindlg() -> Widget {
-    let mut maindlg = Widget::new(60, 10);
+fn create_maindlg() -> Dialog {
+    let mut maindlg = Dialog::new(60, 10);
     let s = "Hello! This is a showcase of the ui module!";
-    let x = maindlg.halign_line(s, HorizontalAlign::Middle, 1);
-    maindlg.printline(x, 2, s);
-    let mut b = create_button("Quit", Some('q'));
-    b.align(&maindlg, HorizontalAlign::Middle, VerticalAlign::Bottom, 1);
-    b.draw_into(&mut maindlg);
-    maindlg.draw_box();
+    let x = maindlg.window().halign_line(s, HorizontalAlign::Middle, 1);
+    maindlg.window_mut().printline(x, 2, s);
+    maindlg.add_button("Foo", 'f', DialogResult::Custom(1));
+    maindlg.add_button("Bar", 'b', DialogResult::Custom(2));
+    maindlg.add_button("Quit", 'q', DialogResult::Ok);
+    maindlg.draw_buttons();
+    maindlg.window_mut().draw_box();
     maindlg
 }
 
 fn main() {
     let mut term = Terminal::new().unwrap();
     let mut maindlg = create_maindlg();
-    maindlg.align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
+    maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
-            match ch {
-                'q' | 'Q' => break 'main,
+            match maindlg.result_for_key(ch) {
+                Some(DialogResult::Ok) => break 'main,
+                Some(DialogResult::Custom(i)) => {
+                    let msg = if i == 1 { "Foo!" } else { "Bar!" };
+                    let w = maindlg.window_mut();
+                    let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
+                    let y = w.valign_line(msg, VerticalAlign::Middle, 1);
+                    w.printline(x, y, msg);
+                },
                 _ => {},
             }
         }
 
-        maindlg.draw_into(&mut term);
+        maindlg.window().draw_into(&mut term);
         term.swap_buffers().unwrap();
     }
 }
