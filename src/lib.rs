@@ -30,7 +30,7 @@ pub use core::cellbuffer::{
     Attr,
     CellAccessor,
 };
-pub use core::position::{Pos, Size, HasSize};
+pub use core::position::{Pos, Size, HasSize, HasPosition};
 pub use core::input::Event;
 pub use util::errors::Error;
 
