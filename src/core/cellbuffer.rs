@@ -111,65 +111,70 @@ impl Default for CellBuffer {
 
 /// A single point on a terminal display.
 ///
-/// A `Cell` contains a character and a set of foreground and background `Style`s.
+/// A `Cell` contains a character and style.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Cell {
     ch: char,
-    fg: Style,
-    bg: Style,
+    fg: Color,
+    bg: Color,
+    attrs: Attr,
 }
 
 impl Cell {
-    /// Creates a new `Cell` with the given `char` and `Style`s.
+    /// Creates a new `Cell` with the given `char`, `Color`s and `Attr`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style, Color};
+    /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::new('x', Style::default(), Style::with_color(Color::Green));
+    /// let cell = Cell::new('x', Color::Default, Color::Green, Attr::Default);
     /// assert_eq!(cell.ch(), 'x');
-    /// assert_eq!(cell.fg(), Style::default());
-    /// assert_eq!(cell.bg(), Style::with_color(Color::Green));
+    /// assert_eq!(cell.fg(), Color::Default);
+    /// assert_eq!(cell.bg(), Color::Green);
+    /// assert_eq!(cell.attrs(), Attr::Default);
     /// ```
-    pub fn new(ch: char, fg: Style, bg: Style) -> Cell {
+    pub fn new(ch: char, fg: Color, bg: Color, attrs: Attr) -> Cell {
         Cell {
             ch: ch,
             fg: fg,
             bg: bg,
+            attrs: attrs,
         }
     }
 
-    /// Creates a new `Cell` with the given `char` and default `Style`s.
+    /// Creates a new `Cell` with the given `char` and default style.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style};
+    /// use rustty::{Cell, Color, Attr};
     ///
     /// let mut cell = Cell::with_char('x');
     /// assert_eq!(cell.ch(), 'x');
-    /// assert_eq!(cell.fg(), Style::default());
-    /// assert_eq!(cell.bg(), Style::default());
+    /// assert_eq!(cell.fg(), Color::Default);
+    /// assert_eq!(cell.bg(), Color::Default);
+    /// assert_eq!(cell.attrs(), Attr::Default);
     /// ```
     pub fn with_char(ch: char) -> Cell {
-        Cell::new(ch, Style::default(), Style::default())
+        Cell::new(ch, Color::Default, Color::Default, Attr::Default)
     }
 
-    /// Creates a new `Cell` with the given `Style`s and a blank `char`.
+    /// Creates a new `Cell` with the given style and a blank `char`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style, Color};
+    /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::with_styles(Style::default(), Style::with_color(Color::Red));
-    /// assert_eq!(cell.fg(), Style::default());
-    /// assert_eq!(cell.bg(), Style::with_color(Color::Red));
+    /// let mut cell = Cell::with_style(Color::Default, Color::Red, Attr::Bold);
+    /// assert_eq!(cell.fg(), Color::Default);
+    /// assert_eq!(cell.bg(), Color::Red);
+    /// assert_eq!(cell.attrs(), Attr::Bold);
     /// assert_eq!(cell.ch(), ' ');
     /// ```
-    pub fn with_styles(fg: Style, bg: Style) -> Cell {
-        Cell::new(' ', fg, bg)
+    pub fn with_style(fg: Color, bg: Color, attr: Attr) -> Cell {
+        Cell::new(' ', fg, bg, attr)
     }
 
     /// Returns the `Cell`'s character.
@@ -204,256 +209,101 @@ impl Cell {
         self
     }
 
-    /// Returns the `Cell`'s foreground `Style`.
+    /// Returns the `Cell`'s foreground `Color`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style, Attr};
+    /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::with_styles(Style::with_attr(Attr::Bold), Style::default());
-    /// assert_eq!(cell.fg(), Style::with_attr(Attr::Bold));
+    /// let mut cell = Cell::with_style(Color::Blue, Color::Default, Attr::Default);
+    /// assert_eq!(cell.fg(), Color::Blue);
     /// ```
-    pub fn fg(&self) -> Style {
+    pub fn fg(&self) -> Color {
         self.fg
     }
 
-    /// Returns a mutable reference to the `Cell`'s foreground `Style`.
+    /// Sets the `Cell`'s foreground `Color` to the given `Color`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style};
+    /// use rustty::{Cell, Color, Attr};
     ///
     /// let mut cell = Cell::default();
-    /// assert_eq!(cell.fg_mut(), &mut Style::default());
+    /// assert_eq!(cell.fg(), Color::Default);
+    ///
+    /// cell.set_fg(Color::White);
+    /// assert_eq!(cell.fg(), Color::White);
     /// ```
-    pub fn fg_mut(&mut self) -> &mut Style {
-        &mut self.fg
-    }
-
-    /// Sets the `Cell`'s foreground `Style` to the given `Style`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Cell, Style, Color, Attr};
-    ///
-    /// let mut cell = Cell::with_styles(Style::with_color(Color::Green), Style::default());
-    /// assert_eq!(cell.fg(), Style::with_color(Color::Green));
-    ///
-    /// cell.set_fg(Style::with_attr(Attr::Underline));
-    /// assert_eq!(cell.fg(), Style::with_attr(Attr::Underline));
-    /// ```
-    pub fn set_fg(&mut self, newfg: Style) -> &mut Cell {
+    pub fn set_fg(&mut self, newfg: Color) -> &mut Cell {
         self.fg = newfg;
         self
     }
 
-    /// Returns the `Cell`'s background `Style`.
+    /// Returns the `Cell`'s background `Color`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style, Attr};
+    /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::with_styles(Style::default(), Style::with_attr(Attr::Bold));
-    /// assert_eq!(cell.bg(), Style::with_attr(Attr::Bold));
+    /// let mut cell = Cell::with_style(Color::Default, Color::Green, Attr::Default);
+    /// assert_eq!(cell.bg(), Color::Green);
     /// ```
-    pub fn bg(&self) -> Style {
+    pub fn bg(&self) -> Color {
         self.bg
     }
 
-    /// Returns a mutable reference to the `Cell`'s background `Style`.
+    /// Sets the `Cell`'s background `Color` to the given `Color`.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style};
+    /// use rustty::{Cell, Color, Attr};
     ///
     /// let mut cell = Cell::default();
-    /// assert_eq!(cell.bg_mut(), &mut Style::default());
+    /// assert_eq!(cell.bg(), Color::Default);
+    ///
+    /// cell.set_bg(Color::Black);
+    /// assert_eq!(cell.bg(), Color::Black);
     /// ```
-    pub fn bg_mut(&mut self) -> &mut Style {
-        &mut self.bg
+    pub fn set_bg(&mut self, newbg: Color) -> &mut Cell {
+        self.bg = newbg;
+        self
     }
 
-    /// Sets the `Cell`'s background `Style` to the given `Style`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Cell, Style, Color, Attr};
-    ///
-    /// let mut cell = Cell::with_styles(Style::default(), Style::with_color(Color::Green));
-    /// assert_eq!(cell.bg(), Style::with_color(Color::Green));
-    ///
-    /// cell.set_bg(Style::with_attr(Attr::Underline));
-    /// assert_eq!(cell.bg(), Style::with_attr(Attr::Underline));
-    /// ```
-    pub fn set_bg(&mut self, newbg: Style) -> &mut Cell {
-        self.bg = newbg;
+    pub fn attrs(&self) -> Attr {
+        self.attrs
+    }
+
+    pub fn set_attrs(&mut self, newattrs: Attr) -> &mut Cell {
+        self.attrs = newattrs;
         self
     }
 }
 
 impl Default for Cell {
-    /// Constructs a new `Cell` with a blank `char` and default `Style`s.
+    /// Constructs a new `Cell` with a blank `char` and default `Color`s.
     ///
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Cell, Style};
+    /// use rustty::{Cell, Color};
     ///
     /// let mut cell = Cell::default();
     /// assert_eq!(cell.ch(), ' ');
-    /// assert_eq!(cell.fg(), Style::default());
-    /// assert_eq!(cell.bg(), Style::default());
+    /// assert_eq!(cell.fg(), Color::Default);
+    /// assert_eq!(cell.bg(), Color::Default);
     /// ```
     fn default() -> Cell {
-        Cell::new(' ', Style::default(), Style::default())
-    }
-}
-
-/// The style of a `Cell`.
-///
-/// A `Style` has a `Color` and an `Attr` and represents either the foreground or background
-/// styling of a `Cell`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Style(Color, Attr);
-
-impl Style {
-    /// Constructs a new `Style` with the given `Color` and `Attr`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Color, Attr};
-    ///
-    /// let mut style = Style::new(Color::Green, Attr::BoldUnderline);
-    /// assert_eq!(style.color(), Color::Green);
-    /// assert_eq!(style.attr(), Attr::BoldUnderline);
-    /// ```
-    pub fn new(color: Color, attr: Attr) -> Style {
-        Style(color, attr)
-    }
-
-    /// Constructs a new `Style` with the given `Color` and the default `Attr`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Color, Attr};
-    ///
-    /// let mut style = Style::with_color(Color::Cyan);
-    /// assert_eq!(style.color(), Color::Cyan);
-    /// assert_eq!(style.attr(), Attr::Default);
-    /// ```
-    pub fn with_color(c: Color) -> Style {
-        Style::new(c, Attr::Default)
-    }
-
-    /// Constructs a new `Style` with the given `Attr` and the default `Color`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Color, Attr};
-    ///
-    /// let mut style = Style::with_attr(Attr::UnderlineReverse);
-    /// assert_eq!(style.attr(), Attr::UnderlineReverse);
-    /// assert_eq!(style.color(), Color::Default);
-    /// ```
-    pub fn with_attr(a: Attr) -> Style {
-        Style::new(Color::Default, a)
-    }
-
-    /// Returns the `Style`'s `Color`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Color};
-    ///
-    /// let mut style = Style::with_color(Color::Yellow);
-    /// assert_eq!(style.color(), Color::Yellow);
-    /// ```
-    pub fn color(&self) -> Color {
-        self.0
-    }
-
-    /// Sets the `Style`'s `Color` to the given `Color`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Color};
-    ///
-    /// let mut style = Style::with_color(Color::White);
-    /// assert_eq!(style.color(), Color::White);
-    ///
-    /// style.set_color(Color::Black);
-    /// assert_eq!(style.color(), Color::Black);
-    /// ```
-    pub fn set_color(&mut self, newcolor: Color) -> &mut Style {
-        self.0 = newcolor;
-        self
-    }
-
-    /// Returns the `Style`'s `Attr`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Attr};
-    ///
-    /// let mut style = Style::with_attr(Attr::Reverse);
-    /// assert_eq!(style.attr(), Attr::Reverse);
-    /// ```
-    pub fn attr(&self) -> Attr {
-        self.1
-    }
-
-    /// Sets the given `Style`'s `Attr` to the given `Attr`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Attr};
-    ///
-    /// let mut style = Style::with_attr(Attr::BoldReverse);
-    /// assert_eq!(style.attr(), Attr::BoldReverse);
-    ///
-    /// style.set_attr(Attr::Underline);
-    /// assert_eq!(style.attr(), Attr::Underline);
-    /// ```
-    pub fn set_attr(&mut self, newattr: Attr) -> &mut Style {
-        self.1 = newattr;
-        self
-    }
-}
-
-impl Default for Style {
-    /// Constructs a new `Style` with the default `Color` and `Attr`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Style, Color, Attr};
-    ///
-    /// let mut style = Style::default();
-    /// assert_eq!(style.color(), Color::Default);
-    /// assert_eq!(style.attr(), Attr::Default);
-    /// ```
-    fn default() -> Style {
-        Style::new(Color::Default, Attr::Default)
+        Cell::new(' ', Color::Default, Color::Default, Attr::Default)
     }
 }
 
 /// The color of a `Cell`.
 ///
-/// `Color::Default` represents the default color of the underlying terminal and may be used to
-/// reset a `Style`'s `Color`.
+/// `Color::Default` represents the default color of the underlying terminal.
 ///
 /// The eight basic colors may be used directly and correspond to 0x00..0x07 in the 8-bit (256)
 /// color range; in addition, the eight basic colors coupled with `Attr::Bold` correspond to
@@ -512,9 +362,9 @@ impl Color {
 
 /// The attributes of a `Cell`.
 ///
-/// `Attr` enumerates all combinations of attributes a given `Style` may have.
+/// `Attr` enumerates all combinations of attributes a given style may have.
 ///
-/// `Attr::Default` represents no attribute and may be used to reset a `Style`'s `Attr`.
+/// `Attr::Default` represents no attribute.
 ///
 /// # Examples
 ///
