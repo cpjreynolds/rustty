@@ -13,10 +13,9 @@
 //! Futher reading on the concepts behind Rustty can be found in the
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
-extern crate nix;
 extern crate term;
-#[macro_use]
-extern crate lazy_static;
+extern crate nix;
+#[macro_use] extern crate lazy_static;
 
 mod core;
 mod util;
