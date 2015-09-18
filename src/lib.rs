@@ -13,10 +13,10 @@
 //! Futher reading on the concepts behind Rustty can be found in the
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
-extern crate nix;
 extern crate term;
-#[macro_use]
-extern crate lazy_static;
+extern crate nix;
+extern crate libc;
+#[macro_use] extern crate lazy_static;
 
 mod core;
 mod util;
@@ -25,7 +25,6 @@ pub mod ui;
 pub use core::terminal::Terminal;
 pub use core::cellbuffer::{
     Cell,
-    Style,
     Color,
     Attr,
     CellAccessor,

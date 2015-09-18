@@ -16,11 +16,11 @@ pub trait Painter: CellAccessor {
     /// # Examples
     ///
     /// ```
-    /// use rustty::{Terminal, Cell, Style, Color};
+    /// use rustty::{Terminal, Cell, Color, Attr};
     /// use rustty::ui::Painter;
     ///
     /// let mut term = Terminal::new().unwrap();
-    /// let cell = Cell::with_styles(Style::default(), Style::with_color(Color::Red));
+    /// let cell = Cell::with_style(Color::Default, Color::Red, Attr::Default);
     /// term.printline_with_cell(0, 0, "foobar", cell);
     /// ```
     fn printline_with_cell(&mut self, x: usize, y: usize, line: &str, cell: Cell) {

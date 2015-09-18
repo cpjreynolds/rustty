@@ -3,14 +3,13 @@ extern crate rustty;
 use rustty::{
     Terminal,
     Event,
-    Style,
     Color,
 };
 
 struct Cursor {
     pos: Position,
     lpos: Position,
-    style: Style,
+    color: Color,
 }
 
 #[derive(Copy, Clone)]
@@ -23,10 +22,10 @@ fn main() {
     let mut cursor = Cursor {
         pos: Position { x: 0, y: 0 },
         lpos: Position { x: 0, y: 0 },
-        style: Style::with_color(Color::Red),
+        color: Color::Red,
     };
     let mut term = Terminal::new().unwrap();
-    term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.style);
+    term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.color);
     term.swap_buffers().unwrap();
     loop {
         let evt = term.get_event(100).unwrap();
@@ -56,19 +55,19 @@ fn main() {
                 },
             }
             if cursor.pos.x >= term.cols()-1 {
-                term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Style::default());
+                term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Color::Default);
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y += 1;
             }
             if cursor.pos.y >= term.rows()-1 {
-                term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Style::default());
+                term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Color::Default);
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y = 0;
             }
-            term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Style::default());
-            term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.style);
+            term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Color::Default);
+            term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.color);
             term.swap_buffers().unwrap();
         }
     }

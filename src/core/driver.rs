@@ -50,6 +50,7 @@ static CAPABILITIES: &'static [&'static str] = &[
 // to take advantage of compile-time type-checking instead of hoping invalid strings aren't passed.
 // This allows us to guarantee that driver accesses will succeed. In addition, using an enum means
 // Driver doesn't need hard-coded methods for each capability we want to use.
+#[allow(dead_code)]
 pub enum DevFn {
     EnterCa,
     ExitCa,

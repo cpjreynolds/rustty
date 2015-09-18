@@ -21,7 +21,7 @@ pub fn create_button(text: &str, accel: Option<char>) -> Widget {
         Some(c) => {
             match find_accel_char_index(text, c) {
                 Some(i) => {
-                    widget.get_mut(i+2, 0).unwrap().fg_mut().set_attr(Attr::Bold);
+                    widget.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
                 },
                 None => (),
             }

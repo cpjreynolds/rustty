@@ -1,31 +1,36 @@
 use std::os::unix::io::RawFd;
 use std::mem;
 
+use nix;
 use nix::sys::termios;
 use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
 use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB, CS8};
 use nix::sys::termios::{VMIN, VTIME};
 use nix::sys::termios::SetArg;
 use nix::sys::termios::Termios;
-use nix::sys::ioctl::{
-    self,
-    ioctl_op_t,
-};
 
 use util::errors::Error;
 
-#[cfg(target_os = "macos")]
-const TIOCGWINSZ: ioctl_op_t = 0x40087468;
-#[cfg(target_os = "linux")]
-const TIOCGWINSZ: ioctl_op_t = 0x00005413;
+mod ffi {
+    use libc;
 
-#[repr(C)]
-#[derive(Debug, Clone)]
-struct WindowSize {
-    ws_row: u16,
-    ws_col: u16,
-    ws_xpixel: u16,
-    ws_ypixel: u16,
+    #[cfg(target_os = "macos")]
+    pub const TIOCGWINSZ: libc::c_ulong = 0x40087468;
+    #[cfg(target_os = "linux")]
+    pub const TIOCGWINSZ: libc::c_ulong = 0x00005413;
+
+    #[repr(C)]
+    #[derive(Debug, Clone)]
+    pub struct winsize {
+        pub ws_row: u16,
+        pub ws_col: u16,
+        ws_xpixel: u16,
+        ws_ypixel: u16,
+    }
+
+    extern {
+        pub fn ioctl(fd: libc::c_int, req: libc::c_ulong, ...) -> libc::c_int;
+    }
 }
 
 /// Controller for low-level interaction with a terminal device.
@@ -58,9 +63,9 @@ impl TermCtl {
     }
 
     pub fn window_size(&self) -> Result<(usize, usize), Error> {
-        let mut ws = unsafe { mem::uninitialized() };
+        let mut ws: ffi::winsize = unsafe { mem::uninitialized() };
         try!(unsafe {
-            ioctl::read_into::<WindowSize>(self.fd, TIOCGWINSZ, &mut ws)
+            nix::from_ffi(ffi::ioctl(self.fd, ffi::TIOCGWINSZ, &mut ws))
         });
         Ok((ws.ws_col as usize, ws.ws_row as usize))
     }

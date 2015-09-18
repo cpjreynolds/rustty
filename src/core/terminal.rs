@@ -19,7 +19,7 @@ use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
 use nix::errno::Errno;
 
-use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Style, Color, Attr};
+use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Color, Attr};
 use core::input::Event;
 use core::position::{Cursor, Pos, Size, HasSize};
 use core::driver::{
@@ -49,7 +49,7 @@ type EventBuffer = VecDeque<Event>;
 /// # Examples
 ///
 /// ```no_run
-/// use rustty::{Terminal, Cell, Style, Color};
+/// use rustty::{Terminal, Cell, Color};
 ///
 /// // Construct a new Terminal.
 /// let mut term = Terminal::new().unwrap();
@@ -59,11 +59,11 @@ type EventBuffer = VecDeque<Event>;
 /// term[(0, 0)] = Cell::with_char('x');
 /// assert_eq!(term[(0, 0)].ch(), 'x');
 ///
-/// term[(0, 1)].set_bg(Style::with_color(Color::Red));
-/// assert_eq!(term[(0, 1)].bg(), Style::with_color(Color::Red));
+/// term[(0, 1)].set_bg(Color::Red);
+/// assert_eq!(term[(0, 1)].bg(), Color::Red);
 ///
-/// term[(0, 2)].fg_mut().set_color(Color::Blue);
-/// assert_eq!(term[(0, 2)].fg().color(), Color::Blue);
+/// term[(0, 2)].set_fg(Color::Blue);
+/// assert_eq!(term[(0, 2)].fg(), Color::Blue);
 /// ```
 pub struct Terminal {
     termctl: TermCtl,
@@ -76,8 +76,7 @@ pub struct Terminal {
     frontbuffer: CellBuffer, // Internal frontbuffer.
     outbuffer: OutBuffer, // Internal output buffer.
     eventbuffer: EventBuffer, // Event buffer.
-    lastfg: Style, // Last foreground style written to the output buffer.
-    lastbg: Style, // Last background style written to the input buffer.
+    laststyle: Cell, // Last cell to have its style (fg, bg, attrs) written to the output buffer.
     cursor: Cursor, // Current cursor position.
 }
 
@@ -109,25 +108,6 @@ impl Terminal {
     /// ```
     pub fn with_char(ch: char) -> Result<Terminal, Error> {
         Terminal::with_cell(Cell::with_char(ch))
-    }
-
-    /// Constructs a new `Terminal` with each cell set to the given `Style`s and a blank `char`.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell, Style, Color, Attr};
-    ///
-    /// let style1 = Style::with_color(Color::Blue);
-    /// let style2 = Style::with_attr(Attr::Reverse);
-    ///
-    /// let mut term = Terminal::with_styles(style1, style2).unwrap();
-    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Blue));
-    /// assert_eq!(term[(0, 0)].bg(), Style::with_attr(Attr::Reverse));
-    /// assert_eq!(term[(0, 0)].ch(), ' ');
-    /// ```
-    pub fn with_styles(fg: Style, bg: Style) -> Result<Terminal, Error> {
-        Terminal::with_cell(Cell::with_styles(fg, bg))
     }
 
     /// Creates a new `Terminal` using the given cell as a blank.
@@ -188,8 +168,7 @@ impl Terminal {
             frontbuffer: CellBuffer::new(0, 0, cell),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
             eventbuffer: EventBuffer::with_capacity(128),
-            lastfg: cell.fg(),
-            lastbg: cell.bg(),
+            laststyle: cell,
             cursor: Cursor::new(),
         };
 
@@ -232,7 +211,7 @@ impl Terminal {
                     continue; // Don't redraw cells that haven't changed.
                 } else {
                     let cell = self.backbuffer[(x, y)];
-                    try!(self.send_style(cell.fg(), cell.bg()));
+                    try!(self.send_style(cell));
                     try!(self.send_char(Some((x, y)), cell.ch()));
                     self.frontbuffer[(x, y)] = cell;
                 }
@@ -312,33 +291,6 @@ impl Terminal {
             try!(self.resize());
         }
         self.backbuffer.clear(Cell::with_char(ch));
-        Ok(())
-    }
-
-    /// Clears the internal backbuffer with the given `Style`s and a blank `char`.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell, Style, Color};
-    ///
-    /// let mut style1 = Style::with_color(Color::Blue);
-    /// let mut style2 = Style::with_color(Color::Red);
-    ///
-    /// let mut term = Terminal::with_styles(style1, style2).unwrap();
-    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Blue));
-    /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Red));
-    ///
-    /// term.clear_with_styles(style2, style1).unwrap();
-    /// assert_eq!(term[(0, 0)].fg(), Style::with_color(Color::Red));
-    /// assert_eq!(term[(0, 0)].bg(), Style::with_color(Color::Blue));
-    /// ```
-    pub fn clear_with_styles(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
-        // Check whether the window has been resized; if it has then update and resize the buffers.
-        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.resize());
-        }
-        self.backbuffer.clear(Cell::with_styles(fg, bg));
         Ok(())
     }
 
@@ -436,28 +388,6 @@ impl Terminal {
     /// ```
     pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>, Error> {
         self.try_resize_with_cell(Cell::with_char(ch))
-    }
-
-    /// Resizes the buffers if the underlying terminal window size has changed, using the given
-    /// `Style`s and a blank `char` as a blank.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Style, Color};
-    ///
-    /// let style = Style::with_color(Color::Red);
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// // If new_size == Some(T) then T is the new size of the terminal.
-    /// // If new_size == None then the terminal has not resized.
-    /// let new_size = term.try_resize_with_styles(style, style).unwrap();
-    /// ```
-    pub fn try_resize_with_styles(&mut self,
-                                  fg: Style,
-                                  bg: Style) -> Result<Option<(usize, usize)>, Error> {
-        self.try_resize_with_cell(Cell::with_styles(fg, bg))
     }
 
     /// Resizes the buffers if the underlying terminal window size has changed, using the given
@@ -574,8 +504,7 @@ impl Terminal {
         Ok(())
     }
 
-    fn send_clear(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
-        try!(self.send_style(fg, bg));
+    fn send_clear(&mut self) -> Result<(), Error> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
         try!(self.send_cursor());
         try!(self.flush());
@@ -583,27 +512,19 @@ impl Terminal {
         Ok(())
     }
 
-    fn send_style(&mut self, fg: Style, bg: Style) -> Result<(), Error> {
-        if fg != self.lastfg || bg != self.lastbg {
+    fn send_style(&mut self, cell: Cell) -> Result<(), Error> {
+        if cell.fg() != self.laststyle.fg() || cell.bg() != self.laststyle.bg() || cell.attrs() != self.laststyle.attrs() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
 
-            match fg.attr() {
+            match cell.attrs() {
                 Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold))),
                 Attr::Underline => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline))),
                 Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
                 _ => {},
             }
 
-            match bg.attr() {
-                Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Blink))),
-                Attr::Underline => {},
-                Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
-                _ => {},
-            }
-
-            try!(self.write_sgr(fg.color(), bg.color()));
-            self.lastfg = fg;
-            self.lastbg = bg;
+            try!(self.write_sgr(cell.fg(), cell.bg()));
+            self.laststyle = cell;
         }
         Ok(())
     }
@@ -636,7 +557,8 @@ impl Terminal {
         self.backbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.resize(self.cols, self.rows, blank);
         self.frontbuffer.clear(blank);
-        try!(self.send_clear(blank.fg(), blank.bg()));
+        try!(self.send_style(blank));
+        try!(self.send_clear());
         Ok(())
     }
 
