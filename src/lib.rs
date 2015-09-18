@@ -24,7 +24,6 @@ mod util;
 pub use core::terminal::Terminal;
 pub use core::cellbuffer::{
     Cell,
-    Style,
     Color,
     Attr,
 };
