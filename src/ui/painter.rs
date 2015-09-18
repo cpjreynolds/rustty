@@ -31,7 +31,7 @@ pub trait Painter: CellAccessor {
                 break;
             }
             match self.get_mut(current_x, y) {
-                Some(c) => { c.set_fg(cell.fg()); c.set_bg(cell.bg()); c.set_ch(ch); },
+                Some(c) => { c.set_fg(cell.fg()); c.set_bg(cell.bg()); c.set_attrs(cell.attrs()); c.set_ch(ch); },
                 None => {},
             }
         }
