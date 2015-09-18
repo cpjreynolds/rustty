@@ -15,6 +15,7 @@
 
 extern crate term;
 extern crate nix;
+extern crate libc;
 #[macro_use] extern crate lazy_static;
 
 mod core;
