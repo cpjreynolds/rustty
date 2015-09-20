@@ -25,12 +25,55 @@ const REVERSE: &'static str = "rev";
 const SETFG: &'static str = "setaf";
 const SETBG: &'static str = "setab";
 
+// Terminfo keys. These are arrays because the terminfo database from the `term` crate sometimes
+// uses the variable name and othertimes the capname.
+//
+// Arrays are formatted as ["variable_name", "cap_name"].
+const KEY_F1: &'static [&'static str] = &["key_f1", "kf1"];
+const KEY_F2: &'static [&'static str] = &["key_f2", "kf2"];
+const KEY_F3: &'static [&'static str] = &["key_f3", "kf3"];
+const KEY_F4: &'static [&'static str] = &["key_f4", "kf4"];
+const KEY_F5: &'static [&'static str] = &["key_f5", "kf5"];
+const KEY_F6: &'static [&'static str] = &["key_f6", "kf6"];
+const KEY_F7: &'static [&'static str] = &["key_f7", "kf7"];
+const KEY_F8: &'static [&'static str] = &["key_f8", "kf8"];
+const KEY_F9: &'static [&'static str] = &["key_f9", "kf9"];
+const KEY_F10: &'static [&'static str] = &["key_f10", "kf10"];
+const KEY_F11: &'static [&'static str] = &["key_f11", "kf11"];
+const KEY_F12: &'static [&'static str] = &["key_f12", "kf12"];
+const KEY_UP: &'static [&'static str] = &["key_up", "kcuu1"];
+const KEY_DOWN: &'static [&'static str] = &["key_down", "kcud1"];
+const KEY_LEFT: &'static [&'static str] = &["key_left", "kcub1"];
+const KEY_RIGHT: &'static [&'static str] = &["key_right", "kcuf1"];
+
+// Array of terminal keys.
+const KEYS: &'static [&'static [&'static str]] = &[
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_F11,
+    KEY_F12,
+    KEY_UP,
+    KEY_DOWN,
+    KEY_LEFT,
+    KEY_RIGHT,
+];
+
 // Array of terminal capabilities. Used as an iterator to test for functionality.
 //
 // At the moment all functionality is required, however in the future we should implement optional
 // functionality checks so the absence of underlining or reverse video doesn't cause initialization
 // to fail.
-static CAPABILITIES: &'static [&'static str] = &[
+//
+// TODO: Optional functionality testing.
+const CAPABILITIES: &'static [&'static str] = &[
     ENTER_CA,
     EXIT_CA,
     SHOW_CURSOR,
@@ -91,6 +134,8 @@ pub struct Driver {
     tinfo: &'static TermInfo,
 }
 
+// We will never need to mutate the terminfo database, and it is only used internally as a lookup
+// table for the driver. `lazy_static` seems to be the best approach at the moment.
 lazy_static! {
     static ref TINFO: TermInfo = {
         TermInfo::from_env().unwrap_or({
