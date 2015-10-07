@@ -6,6 +6,20 @@ use rustty::{
 };
 
 const BLOCK: char = '\u{25AA}';
+const BUFF_ALIGN: usize = 35;
+
+fn write_word(term: &mut Terminal, row: usize, word: String) { 
+
+    let cols = term.cols() as usize;
+
+    for (idx, ch) in word.chars().enumerate() {
+        
+        let x = cols - BUFF_ALIGN;
+        
+        let mut cell = &mut term[(x as usize + idx, row)];
+        cell.set_ch(ch);
+    }
+}
 
 fn main() {
     let mut term = Terminal::new().unwrap();
@@ -21,7 +35,7 @@ fn main() {
         }
 
         let (cols, rows) = term.size();
-        let (cols, rows) = (cols as isize, (rows - 3) as isize);
+        let (cols, rows) = (cols as isize, (rows - 4) as isize);
 
         let (a, b) = (cols / 2, rows / 2);
 
@@ -37,6 +51,12 @@ fn main() {
                 cell.set_ch(' ');
             }
         }
+
+        let i = cols*rows;
+        let y = i as isize / cols;
+        write_word(&mut term, y as usize, "+ -> Increase Radius".to_string());
+        write_word(&mut term, (y+1) as usize, "- -> Decrease Radius".to_string());
+        write_word(&mut term, (y+2) as usize, "q -> Quit".to_string());
         term.swap_buffers().unwrap();
     }
 }
