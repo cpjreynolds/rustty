@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use util::errors::{
     Result,
     Error,
