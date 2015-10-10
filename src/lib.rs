@@ -20,13 +20,16 @@ extern crate libc;
 
 mod core;
 mod util;
+pub mod ui;
 
 pub use core::terminal::Terminal;
 pub use core::cellbuffer::{
     Cell,
     Color,
     Attr,
+    CellAccessor,
 };
+pub use core::position::{Pos, Size, HasSize, HasPosition};
 pub use core::input::Event;
 pub use util::errors::Error;
 
