@@ -3,6 +3,7 @@ extern crate rustty;
 use rustty::{
     Terminal,
     Event,
+    HasSize,
 };
 
 const BLOCK: char = '\u{25AA}';

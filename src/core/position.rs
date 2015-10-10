@@ -1,100 +1,51 @@
+/// A `(x, y)` position on screen.
+pub type Pos = (usize, usize);
+/// A `(cols, rows)` size.
+pub type Size = (usize, usize);
 
-/// A coordinate that can be either valid or invalid.
-#[derive(Copy, Clone)]
-pub enum Coordinate<T> {
-    Invalid,
-    Valid(T),
+pub trait HasSize {
+    fn size(&self) -> Size;
 }
 
-impl<T> Coordinate<T> {
-    /// Returns `true` if coordinate is invalid and `false` otherwise.
-    pub fn is_invalid(&self) -> bool {
-        match *self {
-            Coordinate::Invalid => true,
-            _ => false,
-        }
-    }
-
-    /// Returns `true` if the coordinate is valid and `false` otherwise.
-    pub fn is_valid(&self) -> bool {
-        match *self {
-            Coordinate::Invalid => false,
-            _ => true,
-        }
-    }
-
-    pub fn invalidate(&mut self) {
-        *self = Coordinate::Invalid;
-    }
-}
-
-/// A pair of coordinates.
-pub type Pair = (usize, usize);
-
-/// A trait for objects which have a position that can be expressed as coordinates.
-pub trait Position<T> {
-    /// Returns the current position's coordinates.
-    fn pos(&self) -> Coordinate<T>;
-
-    /// Sets the current position to the given coordinates and sets the last position's coordinates
-    /// accordingly.
-    fn set_pos(&mut self, newpos: Coordinate<T>);
-
-    /// Invalidates the current position.
-    fn invalidate_pos(&mut self);
-
-    /// Returns the last position's coordinates.
-    fn last_pos(&self) -> Coordinate<T>;
-
-    /// Invalidates the last position.
-    fn invalidate_last_pos(&mut self);
+pub trait HasPosition {
+    fn origin(&self) -> Pos;
+    fn set_origin(&mut self, new_origin: Pos);
 }
 
 /// A cursor position.
 pub struct Cursor {
-    pos: Coordinate<Pair>,
-    last_pos: Coordinate<Pair>,
+    pos: Option<Pos>,
+    last_pos: Option<Pos>,
 }
 
 impl Cursor {
     pub fn new() -> Cursor {
         Cursor {
-            pos: Coordinate::Invalid,
-            last_pos: Coordinate::Invalid,
+            pos: None,
+            last_pos: None,
         }
     }
 
     /// Checks whether the current and last coordinates are sequential and returns `true` if they
     /// are and `false` otherwise.
     pub fn is_seq(&self) -> bool {
-        if let Coordinate::Valid((cx, cy)) =  self.pos {
-            if let Coordinate::Valid((lx, ly)) = self.last_pos {
+        if let Some((cx, cy)) =  self.pos {
+            if let Some((lx, ly)) = self.last_pos {
                 (lx+1, ly) == (cx, cy)
             } else { false }
         } else { false }
     }
 
-}
-
-impl Position<Pair> for Cursor {
-    fn pos(&self) -> Coordinate<Pair> {
+    pub fn pos(&self) -> Option<Pos> {
         self.pos
     }
 
-    fn set_pos(&mut self, newpos: Coordinate<Pair>) {
+    pub fn set_pos(&mut self, newpos: Option<Pos>) {
         self.last_pos = self.pos;
         self.pos = newpos;
     }
 
-    fn invalidate_pos(&mut self) {
-        self.pos.invalidate();
-    }
-
-    fn last_pos(&self) -> Coordinate<Pair> {
-        self.last_pos
-    }
-
-    fn invalidate_last_pos(&mut self) {
-        self.last_pos.invalidate();
+    pub fn invalidate_last_pos(&mut self) {
+        self.last_pos = None;
     }
 }
