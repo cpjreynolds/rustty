@@ -6,6 +6,15 @@ use rustty::{
     HasSize,
 };
 
+use rustty::ui::{
+    Painter,
+    Dialog,
+    DialogResult,
+    Alignable,
+    HorizontalAlign,
+    VerticalAlign
+};
+
 const BLOCK: char = '\u{25AA}';
 const BUFF_ALIGN: usize = 35;
 
@@ -20,8 +29,25 @@ fn write_word(term: &mut Terminal, row: usize, word: String) {
     }
 }
 
+fn create_optiondlg() -> Dialog {
+    let mut optiondlg = Dialog::new(50, 6);
+    let inc_label = "+ -> Increase Radius";
+    let dec_label = "+ -> Decrease Radius";
+    let q_label = "q -> Quit";
+    let inc_pos = optiondlg.window().halign_line(inc_label, HorizontalAlign::Left, 1);
+    let dec_pos = optiondlg.window().halign_line(dec_label, HorizontalAlign::Left, 1);
+    let q_pos = optiondlg.window().halign_line(q_label, HorizontalAlign::Left, 1);
+    optiondlg.window_mut().printline(inc_pos, 1, inc_label);
+    optiondlg.window_mut().printline(dec_pos, 2, dec_label);
+    optiondlg.window_mut().printline(q_pos, 3, q_label);
+    optiondlg.window_mut().draw_box();
+    optiondlg
+}
+
 fn main() {
     let mut term = Terminal::new().unwrap();
+    let mut optiondlg = create_optiondlg();
+    optiondlg.window_mut().align(&term, HorizontalAlign::Right, VerticalAlign::Bottom, 0);
     let mut radius = 10u32;
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
@@ -53,15 +79,8 @@ fn main() {
                 cell.set_ch(' ');
             }
         }
-
-        // Render text at bottom
-        let i = cols*rows;
-        let y = i as isize / cols;
-        write_word(&mut term, y as usize, "+ -> Increase Radius".to_string());
-        write_word(&mut term, (y+1) as usize, "- -> Decrease Radius".to_string());
-        write_word(&mut term, (y+2) as usize, "q -> Quit".to_string());
         
-        // Swap buffers
+        optiondlg.window().draw_into(&mut term);
         term.swap_buffers().unwrap();
     }
 }
