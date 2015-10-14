@@ -11,6 +11,7 @@ use rustty::ui::{
     Alignable,
     HorizontalAlign,
     VerticalAlign,
+    ButtonLayout
 };
 
 fn create_maindlg() -> Dialog {
@@ -21,7 +22,7 @@ fn create_maindlg() -> Dialog {
     maindlg.add_button("Foo", 'f', DialogResult::Custom(1));
     maindlg.add_button("Bar", 'b', DialogResult::Custom(2));
     maindlg.add_button("Quit", 'q', DialogResult::Ok);
-    maindlg.draw_buttons();
+    maindlg.draw_buttons(ButtonLayout::Horizontal(2));
     maindlg.window_mut().draw_box();
     maindlg
 }
