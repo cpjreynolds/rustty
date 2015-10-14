@@ -12,6 +12,11 @@ pub enum HorizontalAlign {
     Right,
 }
 
+pub enum ButtonLayout {
+    Vertical(HorizontalAlign),
+    Horizontal(usize)
+}
+
 pub trait Alignable: HasSize + HasPosition {
     fn halign(&mut self, parent: &HasSize, halign: HorizontalAlign, margin: usize) {
         let (cols, _) = self.size();
@@ -94,30 +99,27 @@ impl<'a> Alignable for HorizontalLayout<'a> {}
 pub struct VerticalLayout<'a> {
     origin: Pos,
     size: Size,
-    inner_margin: usize,
     elems: Vec<&'a mut Alignable>,
 }
 
 impl <'a> VerticalLayout<'a> {
-    pub fn new(elems: Vec<&mut Alignable>, inner_margin: usize) -> VerticalLayout {
+    pub fn new(elems: Vec<&mut Alignable>) -> VerticalLayout {
         let first_origin = elems.first().unwrap().origin();
-        let total_height = elemns.len() - 1;
-        let height = total_height + inner_margin * (elemns.len() - 1);
-        let width = 
+        let height = elems.len() - 1;
+        let width = elems.iter().map(|s| s.size().0).max().unwrap();
         VerticalLayout {
             origin: first_origin,
-            size: (width, 1),
-            inner_margin: inner_margin,
+            size: (width, height),
             elems: elems,
         }
     }
 
     pub fn align_elems(&mut self) {
         let (x, y) = self.origin();
-        let mut current_x = x;
+        let mut current_y = y;
         for elem in self.elems.iter_mut() {
-            elem.set_origin((current_x, y));
-            current_x += elem.size().0 + self.inner_margin;
+            elem.set_origin((x, current_y));
+            current_y += 1; 
         }
     }
 }
