@@ -60,4 +60,17 @@ impl Dialog {
             b.draw_into(&mut self.window);
         }
     }
+
+    pub fn draw_buttons_subset(&mut self, i: usize, u: usize, offset: usize) {
+        fn f(b: &mut Widget) -> &mut Alignable { &mut *b }
+        {
+            let elems = self.buttons[i..u].iter_mut().map(f).collect();
+            let mut a = HorizontalLayout::new(elems, 2);
+            a.align(&self.window, HorizontalAlign::Middle, VerticalAlign::Bottom, offset);
+            a.align_elems();
+        }
+        for b in self.buttons[i..u].iter() {
+            b.draw_into(&mut self.window);
+        }
+    }
 }
