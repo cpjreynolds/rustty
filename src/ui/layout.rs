@@ -91,3 +91,51 @@ impl<'a> HasPosition for HorizontalLayout<'a> {
 
 impl<'a> Alignable for HorizontalLayout<'a> {}
 
+pub struct VerticalLayout<'a> {
+    origin: Pos,
+    size: Size,
+    inner_margin: usize,
+    elems: Vec<&'a mut Alignable>,
+}
+
+impl <'a> VerticalLayout<'a> {
+    pub fn new(elems: Vec<&mut Alignable>, inner_margin: usize) -> VerticalLayout {
+        let first_origin = elems.first().unwrap().origin();
+        let total_height = elemns.len() - 1;
+        let height = total_height + inner_margin * (elemns.len() - 1);
+        let width = 
+        VerticalLayout {
+            origin: first_origin,
+            size: (width, 1),
+            inner_margin: inner_margin,
+            elems: elems,
+        }
+    }
+
+    pub fn align_elems(&mut self) {
+        let (x, y) = self.origin();
+        let mut current_x = x;
+        for elem in self.elems.iter_mut() {
+            elem.set_origin((current_x, y));
+            current_x += elem.size().0 + self.inner_margin;
+        }
+    }
+}
+
+impl<'a> HasSize for VerticalLayout<'a> {
+    fn size(&self) -> Size {
+        self.size
+    }
+}
+
+impl<'a> HasPosition for VerticalLayout<'a> {
+    fn origin(&self) -> Pos {
+        self.origin
+    }
+
+    fn set_origin(&mut self, new_origin: Pos) {
+        self.origin = new_origin;
+    }
+}
+
+impl<'a> Alignable for VerticalLayout<'a> {}
