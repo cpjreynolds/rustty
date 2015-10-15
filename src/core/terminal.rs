@@ -21,7 +21,7 @@ use nix::errno::Errno;
 
 use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Color, Attr};
 use core::input::Event;
-use core::position::{Cursor, Pos, Size, HasSize};
+use core::position::{Pos, Size, HasSize};
 use core::driver::{
     DevFn,
     Driver,
@@ -77,7 +77,7 @@ pub struct Terminal {
     outbuffer: OutBuffer, // Internal output buffer.
     eventbuffer: EventBuffer, // Event buffer.
     laststyle: Cell, // Last cell to have its style (fg, bg, attrs) written to the output buffer.
-    cursor: Cursor, // Current cursor position.
+    cursor_pos: Pos, // Current cursor position.
 }
 
 impl Terminal {
@@ -169,7 +169,7 @@ impl Terminal {
             outbuffer: OutBuffer::with_capacity(32 * 1024),
             eventbuffer: EventBuffer::with_capacity(128),
             laststyle: cell,
-            cursor: Cursor::new(),
+            cursor_pos: (0, 0),
         };
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
@@ -202,9 +202,6 @@ impl Terminal {
             try!(self.resize());
         }
 
-        // Invalidate the last cursor position.
-        self.cursor.invalidate_last_pos();
-
         for y in 0..self.rows() {
             for x in 0..self.cols() {
                 if self.frontbuffer[(x, y)] == self.backbuffer[(x, y)] {
@@ -212,7 +209,7 @@ impl Terminal {
                 } else {
                     let cell = self.backbuffer[(x, y)];
                     try!(self.send_style(cell));
-                    try!(self.send_char(Some((x, y)), cell.ch()));
+                    try!(self.send_char((x, y), cell.ch()));
                     self.frontbuffer[(x, y)] = cell;
                 }
             }
@@ -426,10 +423,8 @@ impl Terminal {
     /// term.set_cursor(1, 1).unwrap();
     /// ```
     pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
-        if self.cursor.pos().is_none() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)));
-        }
-        self.cursor.set_pos(Some((x, y)));
+        try!(self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)));
+        self.cursor_pos = (x, y);
         try!(self.send_cursor());
         Ok(())
     }
@@ -446,9 +441,7 @@ impl Terminal {
     /// term.hide_cursor().unwrap();
     /// ```
     pub fn hide_cursor(&mut self) -> Result<(), Error> {
-        if self.cursor.pos().is_some() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::HideCursor)));
-        }
+        try!(self.outbuffer.write_all(&self.driver.get(DevFn::HideCursor)));
         Ok(())
     }
 
@@ -489,18 +482,22 @@ impl Terminal {
     }
 
     fn send_cursor(&mut self) -> Result<(), Error> {
-        if let Some((cx, cy)) = self.cursor.pos() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
-        }
+        let (cx, cy) = self.cursor_pos;
+        try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
         Ok(())
     }
 
-    fn send_char(&mut self, coord: Option<Pos>, ch: char) -> Result<(), Error> {
-        self.cursor.set_pos(coord);
-        if !self.cursor.is_seq() {
+    fn send_char(&mut self, coord: Pos, ch: char) -> Result<(), Error> {
+        let initial_cursor_pos = self.cursor_pos;
+        if initial_cursor_pos != coord {
+            self.cursor_pos = coord;
             try!(self.send_cursor());
         }
+
         try!(write!(self.outbuffer, "{}", ch));
+
+        self.cursor_pos = initial_cursor_pos;
+        try!(self.send_cursor());
         Ok(())
     }
 
@@ -508,7 +505,6 @@ impl Terminal {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
         try!(self.send_cursor());
         try!(self.flush());
-        self.cursor.invalidate_last_pos();
         Ok(())
     }
 
