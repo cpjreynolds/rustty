@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use ui::layout::{
-    Alignable, 
-    HorizontalLayout, 
-    HorizontalAlign, 
+    Alignable,
+    HorizontalLayout,
+    HorizontalAlign,
     VerticalAlign,
     VerticalLayout,
     ButtonLayout,
@@ -85,7 +85,7 @@ impl Dialog {
             match layout {
                 ButtonLayout::Vertical(g)   => {
                     let mut l = VerticalLayout::new(elems);
-                    l.align(&self.window, g, VerticalAlign::Bottom, (u-i-1));
+                    l.align(&self.window, g, VerticalAlign::Bottom, 1);
                     l.align_elems();
                 },
                 ButtonLayout::Horizontal(i) => {

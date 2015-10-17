@@ -105,7 +105,7 @@ pub struct VerticalLayout<'a> {
 impl <'a> VerticalLayout<'a> {
     pub fn new(elems: Vec<&mut Alignable>) -> VerticalLayout {
         let first_origin = elems.first().unwrap().origin();
-        let height = elems.len() - 1;
+        let height = elems.len();
         let width = elems.iter().map(|s| s.size().0).max().unwrap();
         VerticalLayout {
             origin: first_origin,
@@ -119,7 +119,7 @@ impl <'a> VerticalLayout<'a> {
         let mut current_y = y;
         for elem in self.elems.iter_mut() {
             elem.set_origin((x, current_y));
-            current_y += 1; 
+            current_y += 1;
         }
     }
 }
