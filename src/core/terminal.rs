@@ -10,6 +10,7 @@ use std::fs::File;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
+use std::thread;
 
 use nix::sys::signal;
 use nix::sys::signal::{SockFlag, SigSet};
@@ -673,11 +674,13 @@ impl IndexMut<Pos> for Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)).unwrap();
-        self.outbuffer.write_all(&self.driver.get(DevFn::Reset)).unwrap();
-        self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
-        self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
-        self.flush().unwrap();
+        if !thread::panicking() {
+            self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)).unwrap();
+            self.outbuffer.write_all(&self.driver.get(DevFn::Reset)).unwrap();
+            self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
+            self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
+            self.flush().unwrap();
+        }
         self.termctl.reset().unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
