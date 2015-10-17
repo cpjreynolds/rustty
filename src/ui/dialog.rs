@@ -56,26 +56,8 @@ impl Dialog {
     }
 
     pub fn draw_buttons(&mut self, layout: ButtonLayout) {
-        fn f(b: &mut Widget) -> &mut Alignable { &mut *b }
-        {
-            let elems: Vec<&mut Alignable> = self.buttons.iter_mut().map(f).collect();
-            match layout {
-                ButtonLayout::Vertical(g)   => {
-                    let length = elems.len();
-                    let mut l = VerticalLayout::new(elems);
-                    l.align(&self.window, g, VerticalAlign::Bottom, length);
-                    l.align_elems();
-                },
-                ButtonLayout::Horizontal(i) => {
-                    let mut l = HorizontalLayout::new(elems, 2);
-                    l.align(&self.window, HorizontalAlign::Middle, VerticalAlign::Bottom, i);
-                    l.align_elems();
-                }
-            }
-        }
-        for b in self.buttons.iter() {
-            b.draw_into(&mut self.window);
-        }
+        let button_count = self.buttons.len();
+        self.draw_buttons_subset(0, button_count, layout);
     }
 
     pub fn draw_buttons_subset(&mut self, i: usize, u: usize, layout: ButtonLayout) {
