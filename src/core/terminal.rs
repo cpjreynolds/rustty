@@ -29,6 +29,7 @@ use core::driver::{
 };
 use core::termctl::TermCtl;
 use util::errors::Error;
+use gag::BufferRedirect;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -79,6 +80,7 @@ pub struct Terminal {
     eventbuffer: EventBuffer, // Event buffer.
     laststyle: Cell, // Last cell to have its style (fg, bg, attrs) written to the output buffer.
     cursor: Cursor, // Current cursor position.
+    stderr_handle: BufferRedirect
 }
 
 impl Terminal {
@@ -171,6 +173,7 @@ impl Terminal {
             eventbuffer: EventBuffer::with_capacity(128),
             laststyle: cell,
             cursor: Cursor::new(),
+            stderr_handle: BufferRedirect::stderr().unwrap()
         };
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
@@ -613,6 +616,11 @@ impl Terminal {
     fn flush(&mut self) -> Result<(), Error> {
         try!(self.tty.write_all(&self.outbuffer));
         self.outbuffer.clear();
+        if thread::panicking() {
+            let mut error = String::new();
+            self.stderr_handle.read_to_string(&mut error).unwrap();
+            print!("{}", error);
+        }
         Ok(())
     }
 }
@@ -674,13 +682,11 @@ impl IndexMut<Pos> for Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        if !thread::panicking() {
-            self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)).unwrap();
-            self.outbuffer.write_all(&self.driver.get(DevFn::Reset)).unwrap();
-            self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
-            self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
-            self.flush().unwrap();
-        }
+        self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(DevFn::Reset)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
+        self.flush().unwrap();
         self.termctl.reset().unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
