@@ -1,6 +1,7 @@
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
 use ui::layout::{Alignable};
+use ui::widget::Widget;
 
 pub struct Base {
     origin: Pos,

@@ -1,16 +1,18 @@
+use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{Attr, CellAccessor};
+use ui::layout::{Alignable, HorizontalAlign, VerticalAlign};
 use ui::widget::Widget;
 use ui::painter::Painter;
 use ui::base::Base;
 
 #[derive(Clone, Copy)]
 pub enum ButtonResult {
-    Ok,
+    Od,
     Cancel,
     Custom(i32),
 }
 
-trait Button: Widget {
+pub trait Button: Widget {
     fn find_accel_char_index(s: &str, accel: char) -> Option<usize> {
         let lower_accel = accel.to_lowercase().next().unwrap_or(accel);
         for (i, c) in s.chars().enumerate() {
@@ -21,23 +23,28 @@ trait Button: Widget {
         None
     }
 
-    fn accel() -> char;
-    fn result() -> ButtonResult;
+    fn accel(&self) -> char;
+    fn result(&self) -> ButtonResult;
 }
 
-struct StdButton {
+pub struct StdButton {
     window: Base,
-    accel: Option<char>
+    accel: Option<char>,
+    result: ButtonResult
 }
 
-impl StdButton {
-    fn new(text: &str, accel: Option<char>) -> StdButton {
+impl StdButton {    
+
+    pub fn new(text: &str, accel: Option<char>, result: ButtonResult) -> StdButton {
         let s = format!("< {} >", text);
         let width = s.chars().count();
-        let mut button = StdButton { window: Base::new(width, 1), accel: None };
+        let mut button = 
+            StdButton { window: Base::new(width, 1), 
+                        accel: accel,
+                        result: result};
         match accel {
             Some(c) => {
-                match find_accel_char_index(text, c) {
+                match Button::find_accel_char_index(text, c) {
                     Some(i) => {
                         button.window.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
                     },
@@ -50,11 +57,19 @@ impl StdButton {
     }
 }
 
-impl Button for StdButton { }
+impl Button for StdButton {
+    fn accel(&self) -> char {
+        return self.accel.unwrap();
+    }
+
+    fn result(&self) -> ButtonResult {
+        return self.result;
+    }
+}
 
 impl Widget for StdButton {
     pub fn draw(&mut self, parent: &mut HasSize) {
-        self.window.draw_into(&mut HasSize);
+        self.window.draw_into(&mut parent);
     }
 
     pub fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
