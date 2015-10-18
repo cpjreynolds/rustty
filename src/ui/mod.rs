@@ -3,6 +3,7 @@ mod layout;
 mod widget;
 mod button;
 mod dialog;
+mod base;
 
 pub use ui::painter::Painter;
 pub use ui::layout::{Alignable, HorizontalAlign, 
