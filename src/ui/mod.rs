@@ -11,4 +11,4 @@ pub use ui::layout::{Alignable, HorizontalAlign,
 pub use ui::widget::Widget;
 pub use ui::button::{ButtonResult, Button, StdButton};
 pub use ui::dialog::{Dialog};
-
+pub use ui::base::Base;

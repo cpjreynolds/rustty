@@ -30,7 +30,8 @@ pub trait Button: Widget {
 pub struct StdButton {
     window: Base,
     accel: char,
-    result: ButtonResult
+    result: ButtonResult,
+    text: String
 }
 
 impl StdButton {    
@@ -41,7 +42,9 @@ impl StdButton {
         let mut button = 
             StdButton { window: Base::new(width, 1), 
                         accel: accel.to_lowercase().next().unwrap_or(accel),
-                        result: result};
+                        result: result,
+                        text: s };
+        button.window.printline(0, 0, &button.text[..]);
         match find_accel_char_index(text, button.accel) {
             Some(i) => {
                 button.window.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
