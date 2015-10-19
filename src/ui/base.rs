@@ -10,8 +10,8 @@ pub struct Base {
 }
 
 impl Base {
-    pub fn new(cols: usize, rows: usize) -> Widget {
-        Widget {
+    pub fn new(cols: usize, rows: usize) -> Base {
+        Base {
             origin: (0, 0),
             size: (cols, rows),
             buf: vec![Cell::default(); cols * rows],

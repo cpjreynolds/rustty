@@ -12,7 +12,8 @@ use rustty::ui::{
     HorizontalAlign,
     VerticalAlign,
     Button,
-    StdButton
+    StdButton,
+    Widget
 };
 
 fn create_maindlg() -> Dialog {
@@ -29,7 +30,7 @@ fn create_maindlg() -> Dialog {
     */    
     maindlg.window_mut().draw_box();
     let mut b1 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
-    b1.align(&maindlg, HorizontalAlign::Left, VerticalAlign::Middle, 0);
+    b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Middle, 0);
     maindlg.add_button(b1);
     maindlg
 }

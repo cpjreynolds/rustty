@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::boxed::Box;
 
-use core::position::{HasSize};
+use core::position::{Pos, Size, HasSize, HasPosition};
+use core::cellbuffer::{Attr, CellAccessor};
 use ui::layout::{
     Alignable,
     HorizontalLayout,
@@ -17,7 +19,7 @@ use ui::button::{Button, ButtonResult};
 
 pub struct Dialog {
     window: Base,
-    buttons: Vec<Button>,
+    buttons: Vec<Box<Button>>,
     accel2result: HashMap<char, ButtonResult>,
 }
 
@@ -25,25 +27,17 @@ pub struct Dialog {
 impl Dialog {
     pub fn new(cols: usize, rows: usize) -> Dialog {
         Dialog {
-            window: Widget::new(cols, rows),
+            window: Base::new(cols, rows),
             buttons: Vec::new(),
             accel2result: HashMap::new(),
         }
     }
 
-    pub fn window(&self) -> &Widget {
-        &self.window
-    }
-
-    pub fn window_mut(&mut self) -> &mut Widget {
-        &mut self.window
-    }
-
-    pub fn add_button(&mut self, button: Button) {
+    pub fn add_button<T: Button + 'static>(&mut self, button: T) {
         self.accel2result.insert(button.accel(), button.result());
-        self.buttons.push(button);
+        self.buttons.push(Box::new(button));
 
-        self.buttons.last_mut().draw_into(&mut self.window);
+        self.buttons.last_mut().unwrap().window().draw_into(&mut self.window);
     }
 
     pub fn result_for_key(&self, key: char) -> Option<ButtonResult> {
@@ -55,12 +49,26 @@ impl Dialog {
 }
 
 impl Widget for Dialog {
-    fn draw(&mut self, parent: &HasSize) {
-        self.window.draw_into(&mut parent);
+    fn draw(&mut self, parent: &mut CellAccessor) {
+        self.window.draw_into(parent);
     }
     
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: usize) {
-        self.align(&parent, halign, valign, margin);
+        self.window_mut().align(parent, halign, valign, margin);
+    }
+
+    fn window(&self) -> &Base {
+        &self.window
+    }
+
+    fn window_mut(&mut self) -> &mut Base {
+        &mut self.window
+    }
+}
+
+impl HasSize for Dialog {
+    fn size(&self) -> Size {
+        self.window.size()
     }
 }

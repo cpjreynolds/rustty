@@ -7,51 +7,46 @@ use ui::base::Base;
 
 #[derive(Clone, Copy)]
 pub enum ButtonResult {
-    Od,
+    Ok,
     Cancel,
     Custom(i32),
 }
 
-pub trait Button: Widget {
-    fn find_accel_char_index(s: &str, accel: char) -> Option<usize> {
-        let lower_accel = accel.to_lowercase().next().unwrap_or(accel);
-        for (i, c) in s.chars().enumerate() {
-            if c.to_lowercase().next().unwrap_or(c) == lower_accel {
-                return Some(i)
-            }
+fn find_accel_char_index(s: &str, accel: char) -> Option<usize> {
+    let lower_accel = accel.to_lowercase().next().unwrap_or(accel);
+    for (i, c) in s.chars().enumerate() {
+        if c.to_lowercase().next().unwrap_or(c) == lower_accel {
+            return Some(i)
         }
-        None
     }
+    None
+}
 
+pub trait Button: Widget {
     fn accel(&self) -> char;
     fn result(&self) -> ButtonResult;
 }
 
 pub struct StdButton {
     window: Base,
-    accel: Option<char>,
+    accel: char,
     result: ButtonResult
 }
 
 impl StdButton {    
 
-    pub fn new(text: &str, accel: Option<char>, result: ButtonResult) -> StdButton {
+    pub fn new(text: &str, accel: char, result: ButtonResult) -> StdButton {
         let s = format!("< {} >", text);
         let width = s.chars().count();
         let mut button = 
             StdButton { window: Base::new(width, 1), 
-                        accel: accel,
+                        accel: accel.to_lowercase().next().unwrap_or(accel),
                         result: result};
-        match accel {
-            Some(c) => {
-                match Button::find_accel_char_index(text, c) {
-                    Some(i) => {
-                        button.window.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
-                    },
-                    None    => (),
-                }
+        match find_accel_char_index(text, button.accel) {
+            Some(i) => {
+                button.window.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
             },
-            None    => ()
+            None    => (),
         }
         button
     }
@@ -59,22 +54,30 @@ impl StdButton {
 
 impl Button for StdButton {
     fn accel(&self) -> char {
-        return self.accel.unwrap();
+        self.accel
     }
 
     fn result(&self) -> ButtonResult {
-        return self.result;
+        self.result
     }
 }
 
 impl Widget for StdButton {
-    pub fn draw(&mut self, parent: &mut HasSize) {
-        self.window.draw_into(&mut parent);
+    fn draw(&mut self, parent: &mut CellAccessor) {
+        self.window.draw_into(parent);
     }
 
-    pub fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
+    fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: usize) {
-        self.align(&parent, halign, valign, margin);
+        self.window.align(parent, halign, valign, margin);
+    }
+
+    fn window(&self) -> &Base {
+        &self.window
+    }
+
+    fn window_mut(&mut self) -> &mut Base {
+        &mut self.window
     }
 }
 
