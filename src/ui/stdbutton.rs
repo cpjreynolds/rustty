@@ -13,6 +13,8 @@ use ui::core::{
     find_accel_char_index
 };
 
+/// A standard button that returns some result based on
+/// whether a key is pressed
 pub struct StdButton {
     window: Base,
     accel: char,
@@ -21,7 +23,9 @@ pub struct StdButton {
 }
 
 impl StdButton {    
-
+    /// Constructs a new `StdButton`, asking for the text to be displayed 
+    /// by the button, the key to map to, and the result returned when the
+    /// key is detected
     pub fn new(text: &str, accel: char, result: ButtonResult) -> StdButton {
         let s = format!("< {} >", text);
         let width = s.chars().count();

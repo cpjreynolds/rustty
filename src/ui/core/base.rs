@@ -2,6 +2,12 @@ use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
 use ui::core::layout::{Alignable};
 
+/// The `Base` struct is the building block for all future
+/// widgets inside of *ui*. Objects of `Base` abstract away
+/// the actual creation and drawing of areas of a terminal,
+/// because this process is the same for all widgets. Every
+/// widget should contain one `Base` type to be used to render
+/// text to the screen
 pub struct Base {
     origin: Pos,
     size: Size,
@@ -9,6 +15,8 @@ pub struct Base {
 }
 
 impl Base {
+    /// Constructs a new Base object with a width of `cols`
+    /// and height of `rows`
     pub fn new(cols: usize, rows: usize) -> Base {
         Base {
             origin: (0, 0),
@@ -17,6 +25,8 @@ impl Base {
         }
     }
 
+    /// Draw the buffer contained inside of the base object to 
+    /// a valid object that implements CellAccessor.
     pub fn draw_into(&self, cells: &mut CellAccessor) {
         let (cols, rows) = self.size();
         let (x, y) = self.origin();

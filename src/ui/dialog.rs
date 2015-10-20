@@ -14,6 +14,7 @@ use ui::core::{
     ButtonResult
 };
 
+/// A Widget that can bind buttons and display text.
 pub struct Dialog {
     window: Base,
     buttons: Vec<Box<Button>>,
@@ -22,6 +23,7 @@ pub struct Dialog {
 
 
 impl Dialog {
+    /// Construct a new Dialog widget `cols` wide by `rows` high.
     pub fn new(cols: usize, rows: usize) -> Dialog {
         Dialog {
             window: Base::new(cols, rows),
@@ -30,6 +32,20 @@ impl Dialog {
         }
     }
 
+    /// Add an existing widget that implements the [Button](ui/core/button/trait.Button.html)
+    /// trait.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    ///
+    /// let mut maindlg = Dialog::new(60, 10);
+    ///
+    /// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    /// b1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
+    /// maildlg.add_button(b1);
+    ///
+    /// ```
     pub fn add_button<T: Button + 'static>(&mut self, button: T) {
         self.accel2result.insert(button.accel(), button.result());
         self.buttons.push(Box::new(button));
@@ -37,6 +53,8 @@ impl Dialog {
         self.buttons.last_mut().unwrap().window().draw_into(&mut self.window);
     }
 
+    /// Checks whether the char passed is a valid key for any buttons currently
+    /// drawn within the dialog, if so the corresponding `ButtonResult` is returned
     pub fn result_for_key(&self, key: char) -> Option<ButtonResult> {
         match self.accel2result.get(&key.to_lowercase().next().unwrap_or(key)) {
             Some(r) => Some(*r),
