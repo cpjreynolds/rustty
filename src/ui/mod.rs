@@ -1,14 +1,6 @@
-mod painter;
-mod layout;
-mod widget;
-mod button;
 mod dialog;
-mod base;
+mod stdbutton;
+pub mod core;
 
-pub use ui::painter::Painter;
-pub use ui::layout::{Alignable, HorizontalAlign, 
-                     VerticalAlign, HorizontalLayout, ButtonLayout};
-pub use ui::widget::Widget;
-pub use ui::button::{ButtonResult, Button, StdButton};
-pub use ui::dialog::{Dialog};
-pub use ui::base::Base;
+pub use ui::dialog::Dialog;
+pub use ui::stdbutton::StdButton;

@@ -1,31 +1,17 @@
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{Attr, CellAccessor};
-use ui::layout::{Alignable, HorizontalAlign, VerticalAlign};
-use ui::widget::Widget;
-use ui::painter::Painter;
-use ui::base::Base;
 
-#[derive(Clone, Copy)]
-pub enum ButtonResult {
-    Ok,
-    Cancel,
-    Custom(i32),
-}
-
-fn find_accel_char_index(s: &str, accel: char) -> Option<usize> {
-    let lower_accel = accel.to_lowercase().next().unwrap_or(accel);
-    for (i, c) in s.chars().enumerate() {
-        if c.to_lowercase().next().unwrap_or(c) == lower_accel {
-            return Some(i)
-        }
-    }
-    None
-}
-
-pub trait Button: Widget {
-    fn accel(&self) -> char;
-    fn result(&self) -> ButtonResult;
-}
+use ui::core::{
+    Alignable, 
+    HorizontalAlign, 
+    VerticalAlign,
+    Widget,
+    Painter,
+    Base,
+    Button,
+    ButtonResult,
+    find_accel_char_index
+};
 
 pub struct StdButton {
     window: Base,

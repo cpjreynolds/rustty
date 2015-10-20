@@ -1,5 +1,5 @@
 use core::cellbuffer::{CellAccessor, Cell};
-use ui::layout::{HorizontalAlign, VerticalAlign};
+use ui::core::layout::{HorizontalAlign, VerticalAlign};
 
 #[derive(Clone, Copy)]
 pub enum Orientation {

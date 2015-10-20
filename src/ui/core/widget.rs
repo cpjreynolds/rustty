@@ -1,7 +1,7 @@
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
-use ui::layout::{Alignable, HorizontalAlign, VerticalAlign};
-use ui::base::Base;
+use ui::core::layout::{Alignable, HorizontalAlign, VerticalAlign};
+use ui::core::base::Base;
 
 pub trait Widget {
     fn draw(&mut self, parent: &mut CellAccessor);

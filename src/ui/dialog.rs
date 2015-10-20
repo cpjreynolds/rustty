@@ -3,19 +3,17 @@ use std::boxed::Box;
 
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{Attr, CellAccessor};
-use ui::layout::{
+
+use ui::core::{
     Alignable,
     HorizontalLayout,
     HorizontalAlign,
     VerticalAlign,
-    VerticalLayout,
-    ButtonLayout,
+    Widget,
+    Base,
+    Button,
+    ButtonResult
 };
-
-use ui::widget::Widget;
-use ui::base::Base;
-use ui::button::{Button, ButtonResult};
-
 
 pub struct Dialog {
     window: Base,
