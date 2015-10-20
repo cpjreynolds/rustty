@@ -1,9 +1,4 @@
-use core::position::{Pos, Size, HasSize, HasPosition};
-use core::cellbuffer::{Attr, CellAccessor};
-use ui::core::layout::{Alignable, HorizontalAlign, VerticalAlign};
-use ui::core::widget::Widget;
-use ui::core::painter::Painter;
-use ui::core::base::Base;
+use ui::core::Widget;
 
 #[derive(Clone, Copy)]
 pub enum ButtonResult {

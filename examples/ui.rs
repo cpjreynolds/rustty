@@ -7,7 +7,6 @@ use rustty::{
 
 use rustty::ui::core::{
     Painter,
-    Base,
     Widget,
     ButtonResult,
     Alignable,

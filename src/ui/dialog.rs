@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::boxed::Box;
 
-use core::position::{Pos, Size, HasSize, HasPosition};
-use core::cellbuffer::{Attr, CellAccessor};
+use core::position::{Size, HasSize};
+use core::cellbuffer::CellAccessor;
 
 use ui::core::{
     Alignable,
-    HorizontalLayout,
     HorizontalAlign,
     VerticalAlign,
     Widget,

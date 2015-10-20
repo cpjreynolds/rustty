@@ -1,6 +1,6 @@
-use core::position::{Pos, Size, HasSize, HasPosition};
-use core::cellbuffer::{CellAccessor, Cell};
-use ui::core::layout::{Alignable, HorizontalAlign, VerticalAlign};
+use core::position::HasSize;
+use core::cellbuffer::CellAccessor;
+use ui::core::layout::{HorizontalAlign, VerticalAlign};
 use ui::core::base::Base;
 
 pub trait Widget {
