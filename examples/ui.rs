@@ -4,15 +4,20 @@ use rustty::{
     Terminal,
     Event,
 };
-use rustty::ui::{
+
+use rustty::ui::core::{
     Painter,
-    Dialog,
+    Base,
+    Widget,
     ButtonResult,
     Alignable,
     HorizontalAlign,
     VerticalAlign,
+};
+
+use rustty::ui::{
     StdButton,
-    Widget,
+    Dialog
 };
 
 fn create_maindlg() -> Dialog {
