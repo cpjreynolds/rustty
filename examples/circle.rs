@@ -26,12 +26,12 @@ const BLOCK: char = '\u{25AA}';
 
 fn create_optiondlg() -> Dialog {
     let mut optiondlg = Dialog::new(50, 6);
-    let mut inc_b = StdButton::new(" + :Increase Radius", '+', ButtonResult::Custom(1));
-    inc_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, 1);
-    let mut dec_b = StdButton::new(" - :Decrease Radius", '-', ButtonResult::Custom(2));
-    dec_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Middle, 1);
+    let mut inc_b = StdButton::new("+ :Increase Radius", '+', ButtonResult::Custom(1));
+    inc_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,1));
+    let mut dec_b = StdButton::new("- :Decrease Radius", '-', ButtonResult::Custom(2));
+    dec_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,2));
     let mut quit_b = StdButton::new("Quit", 'q', ButtonResult::Ok);
-    quit_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Bottom, 1);
+    quit_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,3));
     
     optiondlg.add_button(inc_b);
     optiondlg.add_button(dec_b);
@@ -48,8 +48,8 @@ fn main() {
     let mut canvas = Base::new(term.size().0, term.size().1 - 4);
 
     // Align canvas to top left, and dialog to bottom right
-    optiondlg.window_mut().align(&term, HorizontalAlign::Right, VerticalAlign::Bottom, 0);
-    canvas.align(&term, HorizontalAlign::Left, VerticalAlign::Top, 0);
+    optiondlg.window_mut().align(&term, HorizontalAlign::Right, VerticalAlign::Bottom, (0,0));
+    canvas.align(&term, HorizontalAlign::Left, VerticalAlign::Top, (0,0));
     
     let mut radius = 10u32;
     'main: loop {

@@ -61,7 +61,7 @@ impl Widget for StdButton {
     }
 
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
-                margin: usize) {
+                margin: (usize,usize)) {
         self.window.align(parent, halign, valign, margin);
     }
 

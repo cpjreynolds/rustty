@@ -12,7 +12,7 @@ pub trait Widget {
 
     /// Aligns the widget with the `parent` as reference
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
-                margin: usize);
+                margin: (usize, usize));
 
     /// Return a reference the renderer, `Base` in general cases
     fn window(&self) -> &Base;

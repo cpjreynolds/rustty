@@ -69,7 +69,7 @@ impl Widget for Dialog {
     }
     
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
-                margin: usize) {
+                margin: (usize, usize)) {
         self.window_mut().align(parent, halign, valign, margin);
     }
 
