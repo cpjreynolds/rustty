@@ -16,23 +16,33 @@ use rustty::ui::core::{
 
 use rustty::ui::{
     StdButton,
-    Dialog
+    Dialog,
+    HorizontalLayout
 };
 
 fn create_maindlg() -> Dialog {
     let mut maindlg = Dialog::new(60, 10);
     maindlg.window_mut().draw_box();
-    
+
+    /*
     let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
     b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Top, 6);
     let mut b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
     b2.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, 6);
     let mut b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
     b3.pack(&maindlg, HorizontalAlign::Right, VerticalAlign::Top, 6);
-    
-    maindlg.add_button(b1);
-    maindlg.add_button(b2);
-    maindlg.add_button(b3);
+    */
+
+    let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    let mut b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
+    let mut b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
+
+    let mut hl1 = HorizontalLayout::new(1);
+    hl1.add_widget(b1);
+    hl2.add_widget(b2);
+    hl3.add_widget(b3);
+
+    maindlg.add_layout(hl1, HorizontalAlign::Left, VerticalAlign::Bottom, (1,1));
     maindlg
 }
 
