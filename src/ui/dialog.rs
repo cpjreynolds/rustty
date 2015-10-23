@@ -11,13 +11,15 @@ use ui::core::{
     Widget,
     Base,
     Button,
-    ButtonResult
+    ButtonResult,
+    Layout
 };
 
 /// A Widget that can bind buttons and display text.
 pub struct Dialog {
     window: Base,
     buttons: Vec<Box<Button>>,
+    layouts: Vec<Box<Widget>>,
     accel2result: HashMap<char, ButtonResult>,
 }
 
@@ -28,6 +30,7 @@ impl Dialog {
         Dialog {
             window: Base::new(cols, rows),
             buttons: Vec::new(),
+            layouts: Vec::new(),
             accel2result: HashMap::new(),
         }
     }
@@ -51,6 +54,12 @@ impl Dialog {
         self.buttons.push(Box::new(button));
 
         self.buttons.last_mut().unwrap().window().draw_into(&mut self.window);
+    }
+
+    pub fn add_layout<T: Layout + 'static>(&mut self, layout: T) {
+        self.layouts.push(Box::new(layout));
+
+        self.layouts.last_mut().unwrap().window().draw_into(&mut self.window);
     }
 
     /// Checks whether the char passed is a valid key for any buttons currently

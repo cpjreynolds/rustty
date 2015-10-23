@@ -1,6 +1,6 @@
 use core::position::HasSize;
 use core::cellbuffer::CellAccessor;
-use ui::core::layout::{HorizontalAlign, VerticalAlign};
+use ui::core::alignable::{HorizontalAlign, VerticalAlign};
 use ui::core::base::Base;
 
 /// Every UI element will inherit from trait, widgets are the foundation of

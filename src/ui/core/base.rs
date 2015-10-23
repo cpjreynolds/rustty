@@ -1,6 +1,6 @@
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
-use ui::core::layout::{Alignable};
+use ui::core::alignable::{Alignable};
 
 /// The `Base` struct is the building block for all future
 /// widgets inside of *ui*. Objects of `Base` abstract away

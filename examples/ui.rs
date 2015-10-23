@@ -12,6 +12,7 @@ use rustty::ui::core::{
     Alignable,
     HorizontalAlign,
     VerticalAlign,
+    Layout,
 };
 
 use rustty::ui::{
@@ -37,19 +38,17 @@ fn create_maindlg() -> Dialog {
     let mut b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
     let mut b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
 
-    let mut hl1 = HorizontalLayout::new(1);
-    hl1.add_widget(b1);
-    hl2.add_widget(b2);
-    hl3.add_widget(b3);
-
-    maindlg.add_layout(hl1, HorizontalAlign::Left, VerticalAlign::Bottom, (1,1));
+    //let buttons = vec![b1, b2, b3].into_iter().map(Box::new).collect::<Vec<Box<Widget>>>();
+    let mut hl1 = HorizontalLayout::from_vec(vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Widget>).collect(), 1);
+    hl1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Top, (1,1));
+    maindlg.add_layout(hl1);
     maindlg
 }
 
 fn main() {
     let mut term = Terminal::new().unwrap();
     let mut maindlg = create_maindlg();
-    maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
+    maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
             match maindlg.result_for_key(ch) {
