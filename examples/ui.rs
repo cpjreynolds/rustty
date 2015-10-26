@@ -13,6 +13,7 @@ use rustty::ui::core::{
     HorizontalAlign,
     VerticalAlign,
     Layout,
+    Button
 };
 
 use rustty::ui::{
@@ -39,7 +40,7 @@ fn create_maindlg() -> Dialog {
     let mut b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
 
     //let buttons = vec![b1, b2, b3].into_iter().map(Box::new).collect::<Vec<Box<Widget>>>();
-    let mut hl1 = HorizontalLayout::from_vec(vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Widget>).collect(), 1);
+    let mut hl1 = HorizontalLayout::from_vec(vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Button>).collect(), 1);
     hl1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Top, (1,1));
     maindlg.add_layout(hl1);
     maindlg

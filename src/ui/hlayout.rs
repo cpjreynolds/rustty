@@ -1,18 +1,19 @@
-use ui::core::{Layout, Alignable, HorizontalAlign, VerticalAlign, Widget, Base};
+use ui::core::{Layout, Alignable, HorizontalAlign, VerticalAlign, Widget, Base, Button, ButtonResult};
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
 use std::boxed::Box;
+use std::collections::HashMap;
 
 pub struct HorizontalLayout {
     frame: Base,
     inner_margin: usize,
     size: Size,
     origin: Pos,
-    widgets: Vec<Box<Widget>>
+    widgets: Vec<Box<Button>>
 }
 
 impl HorizontalLayout {
-    pub fn from_vec(widgets: Vec<Box<Widget>>, inner_margin: usize) -> HorizontalLayout {
+    pub fn from_vec(widgets: Vec<Box<Button>>, inner_margin: usize) -> HorizontalLayout {
         let first_origin = widgets.first().unwrap().window().origin();
         let total_width = widgets.iter().fold(0, |acc, item| acc + item.window().size().0);
         let width = total_width + inner_margin * (widgets.len() - 1);
@@ -28,14 +29,13 @@ impl HorizontalLayout {
 }
 
 impl Widget for HorizontalLayout {
-    fn draw(&mut self, parent: &mut CellAccessor) {
-        
-        self.window().draw_into(parent);
+    fn draw(&mut self, parent: &mut CellAccessor) { 
+        self.frame.draw_into(parent);
     }
 
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: (usize, usize)) {
-        self.window_mut().align(parent, halign, valign, margin);
+        self.frame.align(parent, halign, valign, margin);
     }
 
     fn window(&self) -> &Base {
@@ -58,5 +58,11 @@ impl Layout for HorizontalLayout {
         for w in self.widgets.iter() {
             w.window().draw_into(&mut self.frame);
         }
+    }
+
+    fn forward_keys(&mut self, map: &mut HashMap<char, ButtonResult>) {
+       for w in self.widgets.iter() {
+            map.insert(w.accel(), w.result());
+       }
     }
 }

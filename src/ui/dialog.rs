@@ -19,7 +19,7 @@ use ui::core::{
 pub struct Dialog {
     window: Base,
     buttons: Vec<Box<Button>>,
-    layouts: Vec<Box<Widget>>,
+    layouts: Vec<Box<Layout>>,
     accel2result: HashMap<char, ButtonResult>,
 }
 
@@ -58,8 +58,10 @@ impl Dialog {
 
     pub fn add_layout<T: Layout + 'static>(&mut self, layout: T) {
         self.layouts.push(Box::new(layout));
-
+        
+        self.layouts.last_mut().unwrap().align_elems();
         self.layouts.last_mut().unwrap().window().draw_into(&mut self.window);
+        self.layouts.last_mut().unwrap().forward_keys(&mut self.accel2result);
     }
 
     /// Checks whether the char passed is a valid key for any buttons currently
