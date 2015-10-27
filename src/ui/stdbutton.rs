@@ -15,6 +15,25 @@ use ui::core::{
 
 /// A standard button that returns some result based on
 /// whether a key is pressed
+/// 
+/// # Examples
+///
+/// ```
+/// use rustty::ui::core::{HorizontalAlign, VerticalAlign, ButtonResult, Widget};
+/// use rustty::ui::{Dialog, StdButton};
+///
+/// let mut dlg = Dialog::new(60, 10);
+///
+/// let mut b1 = StdButton::new("Foo", 'f', ButtonResult::Ok);
+/// let mut b2 = StdButton::new("Bar" ,'b', ButtonResult::Cancel);
+///
+/// b1.pack(&dlg, HorizontalAlign::Left, VerticalAlign::Middle, (1,1));
+/// b2.pack(&dlg, HorizontalAlign::Middle, VerticalAlign::Middle, (1,1));
+///
+/// dlg.add_button(b1);
+/// dlg.add_button(b2);
+/// ```
+///
 pub struct StdButton {
     window: Base,
     accel: char,
@@ -26,6 +45,16 @@ impl StdButton {
     /// Constructs a new `StdButton`, asking for the text to be displayed 
     /// by the button, the key to map to, and the result returned when the
     /// key is detected
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::core::ButtonResult;
+    /// use rustty::ui::StdButton;
+    ///
+    /// let mut b1 = StdButton::new("Foo", 'f', ButtonResult::Ok);
+    /// ```
+    ///
     pub fn new(text: &str, accel: char, result: ButtonResult) -> StdButton {
         let s = format!("< {} >", text);
         let width = s.chars().count();

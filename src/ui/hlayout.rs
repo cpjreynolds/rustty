@@ -4,6 +4,30 @@ use core::cellbuffer::CellAccessor;
 use std::boxed::Box;
 use std::collections::HashMap;
 
+/// A special widget that encapsulates buttons and aligns them horizontally for
+/// drawing within a `Dialog`
+///
+/// # Examples
+///
+/// ```
+/// use rustty::ui::core::{HorizontalAlign, VerticalAlign, ButtonResult, Widget, Button};
+/// use rustty::ui::{Dialog, StdButton, HorizontalLayout};
+///
+/// let mut maindlg = Dialog::new(60, 10);
+///
+/// let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+/// let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
+/// let b3 = StdButton::new("Bar!", 'b', ButtonResult::Custom(2));
+///
+/// let buttons = vec![b1, b2, b3].into_iter().map(Box::new);
+/// let buttons = buttons.map(|x| x as Box<Button>).collect();
+///
+/// let mut hlayout = HorizontalLayout::from_vec(buttons, 1);
+/// hlayout.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0,1));
+///     
+/// maindlg.add_layout(hlayout);
+/// ```
+///
 pub struct HorizontalLayout {
     frame: Base,
     inner_margin: usize,
@@ -12,6 +36,24 @@ pub struct HorizontalLayout {
 }
 
 impl HorizontalLayout {
+    /// Construct a `HorizontalLayout` object from a vector of boxed objects that implement
+    /// [Button](ui/core/button/trait.Button.html). The current API for this function will
+    /// change *very* soon
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::core::{ButtonResult, Button};
+    /// use rustty::ui::{StdButton, HorizontalLayout};
+    ///
+    /// let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    /// let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
+    /// let b3 = StdButton::new("Bar!", 'b', ButtonResult::Custom(2));
+    ///
+    /// let v = vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Button>).collect();
+    /// let mut hlayout = HorizontalLayout::from_vec(v, 1);
+    /// ```
+    ///
     pub fn from_vec(widgets: Vec<Box<Button>>, inner_margin: usize) -> HorizontalLayout {
         let first_origin = widgets.first().unwrap().window().origin();
         let total_width = widgets.iter().fold(0, |acc, item| acc + item.window().size().0);

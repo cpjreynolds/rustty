@@ -16,6 +16,23 @@ use ui::core::{
 };
 
 /// A Widget that can bind buttons and display text.
+///
+/// # Examples
+///
+/// ```
+/// use rustty::ui::core::{VerticalAlign, HorizontalAlign, ButtonResult, Widget, Painter};
+/// use rustty::ui::{Dialog, StdButton};
+///
+/// let mut maindlg = Dialog::new(60, 10);
+///
+/// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+/// b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Middle, (1,1));
+///
+/// maindlg.window_mut().draw_box();
+/// // draw to terminal
+/// // maindlg.window.draw_into(&mut term);
+/// ```
+///
 pub struct Dialog {
     window: Base,
     buttons: Vec<Box<Button>>,
@@ -26,6 +43,14 @@ pub struct Dialog {
 
 impl Dialog {
     /// Construct a new Dialog widget `cols` wide by `rows` high.
+    /// 
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::Dialog;
+    ///
+    /// let mut maindlg = Dialog::new(60, 10);
+    /// ```
     pub fn new(cols: usize, rows: usize) -> Dialog {
         Dialog {
             window: Base::new(cols, rows),
@@ -48,7 +73,6 @@ impl Dialog {
     /// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
     /// b1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (1,1));
     /// maindlg.add_button(b1);
-    ///
     /// ```
     pub fn add_button<T: Button + 'static>(&mut self, button: T) {
         self.accel2result.insert(button.accel(), button.result());
@@ -57,6 +81,27 @@ impl Dialog {
         self.buttons.last_mut().unwrap().window().draw_into(&mut self.window);
     }
 
+    /// Add an existing widget that implements the [Layout](ui/core/layout/trait.Layout.html)
+    /// trait. **NEEDS A REWORK**, the way of passing in a vector of buttons is ugly and a 
+    /// very bad API.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::core::{HorizontalAlign, VerticalAlign, ButtonResult, Button, Widget};
+    /// use rustty::ui::{Dialog, StdButton, VerticalLayout};
+    ///
+    /// let mut maindlg = Dialog::new(60, 10);
+    /// let b1 = StdButton::new("Foo", 'f', ButtonResult::Ok);
+    /// let b2 = StdButton::new("Bar", 'b', ButtonResult::Cancel);
+    ///
+    /// let vec = vec![b1, b2].into_iter().map(Box::new).map(|x| x as Box<Button>).collect();
+    /// let mut vlayout = VerticalLayout::from_vec(vec, 0);
+    /// vlayout.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
+    ///
+    /// maindlg.add_layout(vlayout);
+    /// ```
+    ///
     pub fn add_layout<T: Layout + 'static>(&mut self, layout: T) {
         self.layouts.push(Box::new(layout));
         

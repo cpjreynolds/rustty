@@ -4,6 +4,30 @@ use core::cellbuffer::CellAccessor;
 use std::boxed::Box;
 use std::collections::HashMap;
 
+/// A special widget that encapsulates buttons and aligns them vertically for
+/// drawing within a `Dialog`
+///
+/// # Examples
+///
+/// ```
+/// use rustty::ui::core::{HorizontalAlign, VerticalAlign, ButtonResult, Button, Widget};
+/// use rustty::ui::{Dialog, StdButton, VerticalLayout};
+///
+/// let mut maindlg = Dialog::new(60, 10);
+///
+/// let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+/// let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
+/// let b3 = StdButton::new("Bar!", 'b', ButtonResult::Custom(2));
+///
+/// let buttons = vec![b1, b2, b3].into_iter().map(Box::new);
+/// let buttons = buttons.map(|x| x as Box<Button>).collect();
+///
+/// let mut vlayout = VerticalLayout::from_vec(buttons, 1);
+/// vlayout.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0,1));
+///     
+/// maindlg.add_layout(vlayout);
+/// ```
+///
 pub struct VerticalLayout {
     frame: Base,
     inner_margin: usize,
@@ -12,6 +36,24 @@ pub struct VerticalLayout {
 }
 
 impl VerticalLayout {
+    /// Construct a `VerticalLayout` object from a vector of boxed objects that implement
+    /// [Button](ui/core/button/trait.Button.html). The current API for this function will
+    /// change *very* soon
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::core::{Button, ButtonResult};
+    /// use rustty::ui::{StdButton, VerticalLayout};
+    ///
+    /// let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    /// let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
+    /// let b3 = StdButton::new("Bar!", 'b', ButtonResult::Custom(2));
+    ///
+    /// let v = vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Button>).collect();
+    /// let mut hlayout = VerticalLayout::from_vec(v, 1);
+    /// ```
+    ///
     pub fn from_vec(widgets: Vec<Box<Button>>, inner_margin: usize) -> VerticalLayout {
         let first_origin = widgets.first().unwrap().window().origin();
         let height = widgets.len() + widgets.len() * inner_margin;
