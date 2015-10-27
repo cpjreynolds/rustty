@@ -17,7 +17,7 @@ pub trait Painter: CellAccessor {
     ///
     /// ```
     /// use rustty::{Terminal, Cell, Color, Attr};
-    /// use rustty::ui::Painter;
+    /// use rustty::ui::core::Painter;
     ///
     /// let mut term = Terminal::new().unwrap();
     /// let cell = Cell::with_style(Color::Default, Color::Red, Attr::Default);

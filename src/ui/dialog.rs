@@ -40,13 +40,14 @@ impl Dialog {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    ///
+    /// ```
+    /// use rustty::ui::core::{Widget, ButtonResult, HorizontalAlign, VerticalAlign};
+    /// use rustty::ui::{Dialog, StdButton};
     /// let mut maindlg = Dialog::new(60, 10);
     ///
     /// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
-    /// b1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
-    /// maildlg.add_button(b1);
+    /// b1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (1,1));
+    /// maindlg.add_button(b1);
     ///
     /// ```
     pub fn add_button<T: Button + 'static>(&mut self, button: T) {
