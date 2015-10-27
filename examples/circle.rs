@@ -26,6 +26,7 @@ const BLOCK: char = '\u{25AA}';
 
 fn create_optiondlg() -> Dialog {
     let mut optiondlg = Dialog::new(50, 6);
+    
     let mut inc_b = StdButton::new("+ :Increase Radius", '+', ButtonResult::Custom(1));
     inc_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,1));
     let mut dec_b = StdButton::new("- :Decrease Radius", '-', ButtonResult::Custom(2));

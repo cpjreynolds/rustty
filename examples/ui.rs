@@ -11,45 +11,29 @@ use rustty::ui::core::{
     ButtonResult,
     Alignable,
     HorizontalAlign,
-    VerticalAlign,
-    Button
+    VerticalAlign
 };
 
 use rustty::ui::{
     StdButton,
     Dialog,
-    HorizontalLayout,
-    VerticalLayout
 };
 
 fn create_maindlg() -> Dialog {
     let mut maindlg = Dialog::new(60, 10);
     maindlg.window_mut().draw_box();
 
-    /*
     let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
-    b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Top, 6);
+    b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Bottom, (4, 2));
     let mut b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
-    b2.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, 6);
+    b2.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 2));
     let mut b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
-    b3.pack(&maindlg, HorizontalAlign::Right, VerticalAlign::Top, 6);
-    */
+    b3.pack(&maindlg, HorizontalAlign::Right, VerticalAlign::Bottom, (4, 2));
 
-    let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
-    let b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
-    let b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
-
-    let b4 = StdButton::new("Tst", 's', ButtonResult::Custom(3));
-    let b5 = StdButton::new("Ghh", 'h', ButtonResult::Custom(4));
-    let b6 = StdButton::new("Nhh", 'n', ButtonResult::Custom(5));
-
-    //let buttons = vec![b1, b2, b3].into_iter().map(Box::new).collect::<Vec<Box<Widget>>>();
-    let mut hl1 = HorizontalLayout::from_vec(vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Button>).collect(), 5);
-    let mut vl1 = VerticalLayout::from_vec(vec![b4, b5, b6].into_iter().map(Box::new).map(|x| x as Box<Button>).collect(), 1);
-    hl1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Top, (1,1));
-    vl1.pack(&maindlg, HorizontalAlign::Right, VerticalAlign::Top, (1,1));
-    maindlg.add_layout(hl1);
-    maindlg.add_layout(vl1);
+    maindlg.add_button(b1);
+    maindlg.add_button(b2);
+    maindlg.add_button(b3);
+    
     maindlg
 }
 

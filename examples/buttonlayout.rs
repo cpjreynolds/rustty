@@ -26,7 +26,6 @@ fn boxify(vec: Vec<StdButton>) -> Vec<Box<Button>> {
 }
 
 fn create_maindlg() -> Dialog {
-    // Create a dialog window 60 units wide and 12 units high
     let mut maindlg = Dialog::new(60, 12);
 
     // Text and alignment data to be used for displaying to dialog
@@ -58,7 +57,6 @@ fn create_maindlg() -> Dialog {
 }
 
 fn create_hdlg(rows: usize) -> Dialog {
-    // Create a dialog window that's as wide as the terminal, and 7 units high
     let mut hdlg = Dialog::new(20, rows/4);
 
     // Text and alignment data to be used for displaying to dialog
