@@ -1,13 +1,12 @@
 use ui::core::{Layout, Alignable, HorizontalAlign, VerticalAlign, Widget, Base, Button, ButtonResult};
-use core::position::{Pos, Size, HasSize, HasPosition};
-use core::cellbuffer::{CellAccessor, Cell};
+use core::position::{Pos, HasSize, HasPosition};
+use core::cellbuffer::CellAccessor;
 use std::boxed::Box;
 use std::collections::HashMap;
 
 pub struct HorizontalLayout {
     frame: Base,
     inner_margin: usize,
-    size: Size,
     origin: Pos,
     widgets: Vec<Box<Button>>
 }
@@ -20,7 +19,6 @@ impl HorizontalLayout {
         HorizontalLayout {
             frame: Base::new(width, 1),
             inner_margin: inner_margin,
-            size: (width, 1),
             origin: first_origin,
             widgets: widgets
         }

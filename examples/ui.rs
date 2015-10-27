@@ -12,7 +12,6 @@ use rustty::ui::core::{
     Alignable,
     HorizontalAlign,
     VerticalAlign,
-    Layout,
     Button
 };
 
@@ -35,9 +34,9 @@ fn create_maindlg() -> Dialog {
     b3.pack(&maindlg, HorizontalAlign::Right, VerticalAlign::Top, 6);
     */
 
-    let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
-    let mut b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
-    let mut b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
+    let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    let b2 = StdButton::new("Foo", 'f', ButtonResult::Custom(1));
+    let b3 = StdButton::new("Bar", 'b', ButtonResult::Custom(2));
 
     //let buttons = vec![b1, b2, b3].into_iter().map(Box::new).collect::<Vec<Box<Widget>>>();
     let mut hl1 = HorizontalLayout::from_vec(vec![b1, b2, b3].into_iter().map(Box::new).map(|x| x as Box<Button>).collect(), 1);
