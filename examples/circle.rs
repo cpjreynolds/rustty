@@ -49,7 +49,7 @@ fn main() {
     let mut canvas = Base::new(term.size().0, term.size().1 - 4);
 
     // Align canvas to top left, and dialog to bottom right
-    optiondlg.window_mut().align(&term, HorizontalAlign::Right, VerticalAlign::Bottom, (0,0));
+    optiondlg.pack(&term, HorizontalAlign::Right, VerticalAlign::Bottom, (0,0));
     canvas.align(&term, HorizontalAlign::Left, VerticalAlign::Top, (0,0));
     
     let mut radius = 10u32;
@@ -90,7 +90,7 @@ fn main() {
 
         // draw the canvas, dialog window and swap buffers
         canvas.draw_into(&mut term);
-        optiondlg.window().draw_into(&mut term);
+        optiondlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }
 }

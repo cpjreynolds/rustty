@@ -9,7 +9,6 @@ use rustty::ui::core::{
     Painter,
     Widget,
     ButtonResult,
-    Alignable,
     HorizontalAlign,
     VerticalAlign
 };
@@ -40,7 +39,7 @@ fn create_maindlg() -> Dialog {
 fn main() {
     let mut term = Terminal::new().unwrap();
     let mut maindlg = create_maindlg();
-    maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
+    maindlg.pack(&term, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
             match maindlg.result_for_key(ch) {
@@ -56,7 +55,7 @@ fn main() {
             }
         }
 
-        maindlg.window().draw_into(&mut term);
+        maindlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }
 }

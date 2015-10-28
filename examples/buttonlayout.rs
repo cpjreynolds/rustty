@@ -126,8 +126,8 @@ fn main() {
         }
 
         // Draw widgets to screen
-        maindlg.window().draw_into(&mut term);
-        hdlg.window().draw_into(&mut term);
+        maindlg.draw(&mut term);
+        hdlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }
 }
