@@ -61,7 +61,7 @@ impl Dialog {
         }
     }
 
-    /// Add an existing widget that implements the [Button](ui/core/button/trait.Button.html)
+    /// Add an existing widget that implements the [Button](core/button/trait.Button.html)
     /// trait.
     ///
     /// # Examples
@@ -82,7 +82,7 @@ impl Dialog {
         self.buttons.last_mut().unwrap().frame().draw_into(&mut self.frame);
     }
 
-    /// Add an existing widget that implements the [Layout](ui/core/layout/trait.Layout.html)
+    /// Add an existing widget that implements the [Layout](core/layout/trait.Layout.html)
     /// trait. **NEEDS A REWORK**, the way of passing in a vector of buttons is ugly and a 
     /// very bad API.
     ///
