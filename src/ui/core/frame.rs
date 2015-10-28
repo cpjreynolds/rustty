@@ -2,23 +2,23 @@ use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
 use ui::core::alignable::{Alignable};
 
-/// The `Base` struct is the building block for all future
-/// widgets inside of *ui*. Objects of `Base` abstract away
+/// The `Frame` struct is the building block for all future
+/// widgets inside of *ui*. Objects of `Frame` abstract away
 /// the actual creation and drawing of areas of a terminal,
 /// because this process is the same for all widgets. Every
-/// widget should contain one `Base` type to be used to render
+/// widget should contain one `Frame` type to be used to render
 /// text to the screen
-pub struct Base {
+pub struct Frame {
     origin: Pos,
     size: Size,
     buf: Vec<Cell>,
 }
 
-impl Base {
-    /// Constructs a new Base object with a width of `cols`
+impl Frame {
+    /// Constructs a new Frame object with a width of `cols`
     /// and height of `rows`
-    pub fn new(cols: usize, rows: usize) -> Base {
-        Base {
+    pub fn new(cols: usize, rows: usize) -> Frame {
+        Frame {
             origin: (0, 0),
             size: (cols, rows),
             buf: vec![Cell::default(); cols * rows],
@@ -43,13 +43,13 @@ impl Base {
     }
 }
 
-impl HasSize for Base {
+impl HasSize for Frame {
     fn size(&self) -> Size {
         self.size
     }
 }
 
-impl CellAccessor for Base {
+impl CellAccessor for Frame {
     fn cellvec(&self) -> &Vec<Cell> {
         &self.buf
     }
@@ -60,7 +60,7 @@ impl CellAccessor for Base {
 
 }
 
-impl HasPosition for Base {
+impl HasPosition for Frame {
     fn origin(&self) -> Pos {
         self.origin
     }
@@ -70,4 +70,4 @@ impl HasPosition for Base {
     }
 }
 
-impl Alignable for Base {}
+impl Alignable for Frame {}

@@ -1,7 +1,7 @@
 use core::position::HasSize;
 use core::cellbuffer::CellAccessor;
 use ui::core::alignable::{HorizontalAlign, VerticalAlign};
-use ui::core::base::Base;
+use ui::core::frame::Frame;
 
 /// Every UI element will inherit from trait, widgets are the foundation of
 /// UI, thus every drawable widget will implement some way to draw, align and
@@ -14,8 +14,10 @@ pub trait Widget {
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: (usize, usize));
 
+    fn draw_box(&mut self);
+    
     /// Return a reference the renderer, `Base` in general cases
-    fn window(&self) -> &Base;
+    fn frame(&self) -> &Frame;
     /// Return a mutable reference to the renderer, `Base` in general cases
-    fn window_mut(&mut self) -> &mut Base;
+    fn frame_mut(&mut self) -> &mut Frame;
 }

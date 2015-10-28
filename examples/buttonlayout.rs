@@ -31,10 +31,10 @@ fn create_maindlg() -> Dialog {
     // Text and alignment data to be used for displaying to dialog
     let s = "Hello! This is a showcase of the ui module!";
     let s2 = "Here's a horizontal layout configuration.";
-    let x = maindlg.window().halign_line(s, HorizontalAlign::Middle, 1);
-    let x2 = maindlg.window().halign_line(s2, HorizontalAlign::Middle, 0);
-    maindlg.window_mut().printline(x, 2, s);
-    maindlg.window_mut().printline(x2, 3, s2);
+    let x = maindlg.frame().halign_line(s, HorizontalAlign::Middle, 1);
+    let x2 = maindlg.frame().halign_line(s2, HorizontalAlign::Middle, 0);
+    maindlg.frame_mut().printline(x, 2, s);
+    maindlg.frame_mut().printline(x2, 3, s2);
 
     let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
     let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
@@ -52,7 +52,7 @@ fn create_maindlg() -> Dialog {
     maindlg.add_layout(hlayout2);
 
     // Draw the outline for the dialog
-    maindlg.window_mut().draw_box();
+    maindlg.draw_box();
     maindlg
 }
 
@@ -61,8 +61,8 @@ fn create_hdlg(rows: usize) -> Dialog {
 
     // Text and alignment data to be used for displaying to dialog
     let s = "Vertical layout";
-    let x = hdlg.window().halign_line(s, HorizontalAlign::Middle, 1);
-    hdlg.window_mut().printline(x, 2, s);
+    let x = hdlg.frame().halign_line(s, HorizontalAlign::Middle, 1);
+    hdlg.frame_mut().printline(x, 2, s);
 
     let b1 = StdButton::new("Yhh!", 'y', ButtonResult::Custom(1));
     let b2 = StdButton::new("Vpp!", 'v', ButtonResult::Custom(2));
@@ -72,7 +72,7 @@ fn create_hdlg(rows: usize) -> Dialog {
     vlayout.pack(&hdlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 2));
     hdlg.add_layout(vlayout);
 
-    hdlg.window_mut().draw_box();
+    hdlg.draw_box();
     hdlg
 }
 
@@ -81,7 +81,7 @@ fn main() {
     let mut term = Terminal::new().unwrap();
     let mut maindlg = create_maindlg();
     let mut hdlg = create_hdlg(term.rows());
-    // Align main dialog window with the middle of the screen, and hdlg with the bottom
+    // Align main dialog frame with the middle of the screen, and hdlg with the bottom
     maindlg.pack(&term, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
     hdlg.pack(&term, HorizontalAlign::Left, VerticalAlign::Middle, (0,0));
     'main: loop {
@@ -100,7 +100,7 @@ fn main() {
                         8   =>  "Wgg!",
                         _   =>  ""
                     };
-                    let w = maindlg.window_mut();
+                    let w = maindlg.frame_mut();
                     let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
                     let y = w.valign_line(msg, VerticalAlign::Middle, 1);
                     w.printline(x, y, msg);
@@ -116,7 +116,7 @@ fn main() {
                         3 => "Wgg!",
                         _ => ""
                     };
-                    let w = hdlg.window_mut();
+                    let w = hdlg.frame_mut();
                     let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
                     let y = w.valign_line(msg, VerticalAlign::Middle, 1);
                     w.printline(x, y, msg);

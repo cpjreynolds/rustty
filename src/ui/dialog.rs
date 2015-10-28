@@ -9,10 +9,11 @@ use ui::core::{
     HorizontalAlign,
     VerticalAlign,
     Widget,
-    Base,
+    Frame,
     Button,
     ButtonResult,
-    Layout
+    Layout,
+    Painter
 };
 
 /// A Widget that can bind buttons and display text.
@@ -28,13 +29,13 @@ use ui::core::{
 /// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
 /// b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Middle, (1,1));
 ///
-/// maindlg.window_mut().draw_box();
+/// maindlg.frame_mut().draw_box();
 /// // draw to terminal
-/// // maindlg.window.draw_into(&mut term);
+/// // maindlg.frame.draw_into(&mut term);
 /// ```
 ///
 pub struct Dialog {
-    window: Base,
+    frame: Frame,
     buttons: Vec<Box<Button>>,
     layouts: Vec<Box<Layout>>,
     accel2result: HashMap<char, ButtonResult>,
@@ -53,7 +54,7 @@ impl Dialog {
     /// ```
     pub fn new(cols: usize, rows: usize) -> Dialog {
         Dialog {
-            window: Base::new(cols, rows),
+            frame: Frame::new(cols, rows),
             buttons: Vec::new(),
             layouts: Vec::new(),
             accel2result: HashMap::new(),
@@ -78,7 +79,7 @@ impl Dialog {
         self.accel2result.insert(button.accel(), button.result());
         self.buttons.push(Box::new(button));
 
-        self.buttons.last_mut().unwrap().window().draw_into(&mut self.window);
+        self.buttons.last_mut().unwrap().frame().draw_into(&mut self.frame);
     }
 
     /// Add an existing widget that implements the [Layout](ui/core/layout/trait.Layout.html)
@@ -106,7 +107,7 @@ impl Dialog {
         self.layouts.push(Box::new(layout));
         
         self.layouts.last_mut().unwrap().align_elems();
-        self.layouts.last_mut().unwrap().window().draw_into(&mut self.window);
+        self.layouts.last_mut().unwrap().frame().draw_into(&mut self.frame);
         self.layouts.last_mut().unwrap().forward_keys(&mut self.accel2result);
     }
 
@@ -122,25 +123,29 @@ impl Dialog {
 
 impl Widget for Dialog {
     fn draw(&mut self, parent: &mut CellAccessor) {
-        self.window.draw_into(parent);
+        self.frame.draw_into(parent);
     }
     
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: (usize, usize)) {
-        self.window_mut().align(parent, halign, valign, margin);
+        self.frame.align(parent, halign, valign, margin);
     }
 
-    fn window(&self) -> &Base {
-        &self.window
+    fn draw_box(&mut self) {
+        self.frame.draw_box();
     }
 
-    fn window_mut(&mut self) -> &mut Base {
-        &mut self.window
+    fn frame(&self) -> &Frame {
+        &self.frame
+    }
+
+    fn frame_mut(&mut self) -> &mut Frame {
+        &mut self.frame
     }
 }
 
 impl HasSize for Dialog {
     fn size(&self) -> Size {
-        self.window.size()
+        self.frame.size()
     }
 }

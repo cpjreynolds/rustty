@@ -7,7 +7,7 @@ use ui::core::{
     VerticalAlign,
     Widget,
     Painter,
-    Base,
+    Frame,
     Button,
     ButtonResult,
     find_accel_char_index
@@ -35,7 +35,7 @@ use ui::core::{
 /// ```
 ///
 pub struct StdButton {
-    window: Base,
+    frame: Frame,
     accel: char,
     result: ButtonResult,
     text: String
@@ -59,14 +59,14 @@ impl StdButton {
         let s = format!("< {} >", text);
         let width = s.chars().count();
         let mut button = 
-            StdButton { window: Base::new(width, 1), 
+            StdButton { frame: Frame::new(width, 1), 
                         accel: accel.to_lowercase().next().unwrap_or(accel),
                         result: result,
                         text: s };
-        button.window.printline(0, 0, &button.text[..]);
+        button.frame.printline(0, 0, &button.text[..]);
         match find_accel_char_index(text, button.accel) {
             Some(i) => {
-                button.window.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
+                button.frame.get_mut(i+2, 0).unwrap().set_attrs(Attr::Bold);
             },
             None    => (),
         }
@@ -86,20 +86,24 @@ impl Button for StdButton {
 
 impl Widget for StdButton {
     fn draw(&mut self, parent: &mut CellAccessor) {
-        self.window.draw_into(parent);
+        self.frame.draw_into(parent);
     }
 
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: (usize,usize)) {
-        self.window.align(parent, halign, valign, margin);
+        self.frame.align(parent, halign, valign, margin);
     }
 
-    fn window(&self) -> &Base {
-        &self.window
+    fn draw_box(&mut self) {
+        self.frame.draw_box();
     }
 
-    fn window_mut(&mut self) -> &mut Base {
-        &mut self.window
+    fn frame(&self) -> &Frame {
+        &self.frame
+    }
+
+    fn frame_mut(&mut self) -> &mut Frame {
+        &mut self.frame
     }
 }
 

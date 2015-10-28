@@ -20,7 +20,7 @@ use rustty::ui::{
 
 fn create_maindlg() -> Dialog {
     let mut maindlg = Dialog::new(60, 10);
-    maindlg.window_mut().draw_box();
+    maindlg.draw_box();
 
     let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
     b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Bottom, (4, 2));
@@ -46,7 +46,7 @@ fn main() {
                 Some(ButtonResult::Ok)          => break 'main,
                 Some(ButtonResult::Custom(i))   => {
                     let msg = if i == 1 { "Foo!" } else { "Bar!" };
-                    let w = maindlg.window_mut();
+                    let w = maindlg.frame_mut();
                     let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
                     let y = w.valign_line(msg, VerticalAlign::Middle, 1);
                     w.printline(x, y, msg);

@@ -5,7 +5,7 @@ pub mod painter;
 pub mod alignable;
 pub mod widget;
 pub mod button;
-pub mod base;
+pub mod frame;
 pub mod layout;
 
 // Because of the bug, there's no use showing these re-exports in the docs, 
@@ -19,6 +19,6 @@ pub use ui::core::layout::Layout;
 #[doc(hidden)]
 pub use ui::core::widget::Widget;
 #[doc(hidden)]
-pub use ui::core::base::Base;
+pub use ui::core::frame::Frame;
 #[doc(hidden)]
 pub use ui::core::button::{Button, ButtonResult, find_accel_char_index};

@@ -1,8 +1,18 @@
-use ui::core::{Layout, Alignable, HorizontalAlign, VerticalAlign, Widget, Base, Button, ButtonResult};
 use core::position::{Pos, HasSize, HasPosition};
 use core::cellbuffer::CellAccessor;
 use std::boxed::Box;
 use std::collections::HashMap;
+use ui::core::{
+    Layout, 
+    Alignable, 
+    HorizontalAlign, 
+    VerticalAlign, 
+    Widget, 
+    Frame, 
+    Button, 
+    Painter,
+    ButtonResult
+};
 
 /// A special widget that encapsulates buttons and aligns them horizontally for
 /// drawing within a `Dialog`
@@ -29,7 +39,7 @@ use std::collections::HashMap;
 /// ```
 ///
 pub struct HorizontalLayout {
-    frame: Base,
+    frame: Frame,
     inner_margin: usize,
     origin: Pos,
     widgets: Vec<Box<Button>>
@@ -55,11 +65,11 @@ impl HorizontalLayout {
     /// ```
     ///
     pub fn from_vec(widgets: Vec<Box<Button>>, inner_margin: usize) -> HorizontalLayout {
-        let first_origin = widgets.first().unwrap().window().origin();
-        let total_width = widgets.iter().fold(0, |acc, item| acc + item.window().size().0);
+        let first_origin = widgets.first().unwrap().frame().origin();
+        let total_width = widgets.iter().fold(0, |acc, item| acc + item.frame().size().0);
         let width = total_width + inner_margin * (widgets.len() - 1);
         HorizontalLayout {
-            frame: Base::new(width, 1),
+            frame: Frame::new(width, 1),
             inner_margin: inner_margin,
             origin: first_origin,
             widgets: widgets
@@ -78,11 +88,15 @@ impl Widget for HorizontalLayout {
         self.frame.align(parent, halign, valign, margin);
     }
 
-    fn window(&self) -> &Base {
+    fn draw_box(&mut self) {
+        self.frame.draw_box();
+    }
+
+    fn frame(&self) -> &Frame {
         &self.frame
     }
 
-    fn window_mut(&mut self) -> &mut Base {
+    fn frame_mut(&mut self) -> &mut Frame {
         &mut self.frame
     }
 }
@@ -92,11 +106,11 @@ impl Layout for HorizontalLayout {
         let (x, y) = self.origin;
         let mut current_x = x;
         for widget in self.widgets.iter_mut() {
-            widget.window_mut().set_origin((current_x, y));
-            current_x += widget.window_mut().size().0 + self.inner_margin;
+            widget.frame_mut().set_origin((current_x, y));
+            current_x += widget.frame_mut().size().0 + self.inner_margin;
         }
         for w in self.widgets.iter() {
-            w.window().draw_into(&mut self.frame);
+            w.frame().draw_into(&mut self.frame);
         }
     }
 

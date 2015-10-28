@@ -8,9 +8,8 @@ use rustty::{
 };
 
 use rustty::ui::core::{
-    Painter,
     Widget,
-    Base,
+    Frame,
     Alignable,
     HorizontalAlign,
     VerticalAlign,
@@ -38,15 +37,15 @@ fn create_optiondlg() -> Dialog {
     optiondlg.add_button(dec_b);
     optiondlg.add_button(quit_b);
 
-    optiondlg.window_mut().draw_box();
+    optiondlg.draw_box();
     optiondlg
 }
 
 fn main() {
-    // Create our terminal, dialog window and main canvas
+    // Create our terminal, dialog frame and main canvas
     let mut term = Terminal::new().unwrap();
     let mut optiondlg = create_optiondlg();
-    let mut canvas = Base::new(term.size().0, term.size().1 - 4);
+    let mut canvas = Frame::new(term.size().0, term.size().1 - 4);
 
     // Align canvas to top left, and dialog to bottom right
     optiondlg.pack(&term, HorizontalAlign::Right, VerticalAlign::Bottom, (0,0));
@@ -88,7 +87,7 @@ fn main() {
             }
         }
 
-        // draw the canvas, dialog window and swap buffers
+        // draw the canvas, dialog frame and swap buffers
         canvas.draw_into(&mut term);
         optiondlg.draw(&mut term);
         term.swap_buffers().unwrap();
