@@ -1,6 +1,13 @@
 use std::collections::HashMap;
 
-use ui::layout::{Alignable, HorizontalLayout, HorizontalAlign, VerticalAlign};
+use ui::layout::{
+    Alignable,
+    HorizontalLayout,
+    HorizontalAlign,
+    VerticalAlign,
+    VerticalLayout,
+    ButtonLayout,
+};
 use ui::widget::Widget;
 use ui::button::{create_button};
 
@@ -48,15 +55,29 @@ impl Dialog {
         }
     }
 
-    pub fn draw_buttons(&mut self) {
+    pub fn draw_buttons(&mut self, layout: ButtonLayout) {
+        let button_count = self.buttons.len();
+        self.draw_buttons_subset(0, button_count, layout);
+    }
+
+    pub fn draw_buttons_subset(&mut self, i: usize, u: usize, layout: ButtonLayout) {
         fn f(b: &mut Widget) -> &mut Alignable { &mut *b }
         {
-            let elems = self.buttons.iter_mut().map(f).collect();
-            let mut l = HorizontalLayout::new(elems, 2);
-            l.align(&self.window, HorizontalAlign::Middle, VerticalAlign::Bottom, 1);
-            l.align_elems();
+            let elems = self.buttons[i..u].iter_mut().map(f).collect();
+            match layout {
+                ButtonLayout::Vertical(g)   => {
+                    let mut l = VerticalLayout::new(elems);
+                    l.align(&self.window, g, VerticalAlign::Bottom, 1);
+                    l.align_elems();
+                },
+                ButtonLayout::Horizontal(i) => {
+                    let mut l = HorizontalLayout::new(elems, 2);
+                    l.align(&self.window, HorizontalAlign::Middle, VerticalAlign::Bottom, i);
+                    l.align_elems();
+                }
+            }
         }
-        for b in self.buttons.iter() {
+        for b in self.buttons[i..u].iter() {
             b.draw_into(&mut self.window);
         }
     }
