@@ -3,9 +3,9 @@ use core::cellbuffer::CellAccessor;
 use ui::core::alignable::{HorizontalAlign, VerticalAlign};
 use ui::core::frame::Frame;
 
-/// Every UI element will inherit from trait, widgets are the foundation of
-/// UI, thus every drawable widget will implement some way to draw, align and
-/// return the renderer (Base in most cases)
+/// Widgets are the foundation of UI, all frontend objects inherit the widget
+/// type and are generalized through either the widget itself or a specialized
+/// widget (*Button*, *Layout*). 
 pub trait Widget {
     /// Draws the widget to the valid `CellAccessor` passed
     fn draw(&mut self, parent: &mut CellAccessor);
@@ -14,10 +14,13 @@ pub trait Widget {
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: (usize, usize));
 
+    /// Expose the painter trait `draw_box` for all widgets, which outlines
+    /// the space enclosed within the widget
     fn draw_box(&mut self);
     
     /// Return a reference the renderer, `Base` in general cases
     fn frame(&self) -> &Frame;
+
     /// Return a mutable reference to the renderer, `Base` in general cases
     fn frame_mut(&mut self) -> &mut Frame;
 }

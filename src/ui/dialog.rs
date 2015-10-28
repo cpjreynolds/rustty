@@ -21,7 +21,7 @@ use ui::core::{
 /// # Examples
 ///
 /// ```
-/// use rustty::ui::core::{VerticalAlign, HorizontalAlign, ButtonResult, Widget, Painter};
+/// use rustty::ui::core::{VerticalAlign, HorizontalAlign, ButtonResult, Widget};
 /// use rustty::ui::{Dialog, StdButton};
 ///
 /// let mut maindlg = Dialog::new(60, 10);
@@ -29,9 +29,9 @@ use ui::core::{
 /// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
 /// b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Middle, (1,1));
 ///
-/// maindlg.frame_mut().draw_box();
+/// maindlg.draw_box();
 /// // draw to terminal
-/// // maindlg.frame.draw_into(&mut term);
+/// // maindlg.draw(&mut term);
 /// ```
 ///
 pub struct Dialog {
