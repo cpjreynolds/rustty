@@ -1,4 +1,4 @@
-use core::position::HasSize;
+use core::position::{Size, HasSize};
 use core::cellbuffer::CellAccessor;
 use ui::core::alignable::{HorizontalAlign, VerticalAlign};
 use ui::core::frame::Frame;
@@ -15,7 +15,9 @@ pub trait Widget {
                 margin: (usize, usize));
 
     fn draw_box(&mut self);
-    
+
+    fn resize(&mut self, new_size: Size);
+
     /// Return a reference the renderer, `Base` in general cases
     fn frame(&self) -> &Frame;
     /// Return a mutable reference to the renderer, `Base` in general cases

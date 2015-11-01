@@ -41,6 +41,12 @@ impl Frame {
             }
         }
     }
+
+    pub fn resize(&mut self, new_size: Size) {
+        let difference = (new_size.0 - self.size.0) * (new_size.1 - self.size.1);
+        self.buf.extend(vec![Cell::default(); difference]);
+        self.size = new_size;
+    }
 }
 
 impl HasSize for Frame {

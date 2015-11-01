@@ -1,4 +1,4 @@
-use core::position::HasSize;
+use core::position::{Size, HasSize};
 use core::cellbuffer::{Attr, CellAccessor};
 
 use ui::core::{
@@ -96,6 +96,10 @@ impl Widget for StdButton {
 
     fn draw_box(&mut self) {
         self.frame.draw_box();
+    }
+
+    fn resize(&mut self, new_size: Size) {
+        self.frame.resize(new_size);
     }
 
     fn frame(&self) -> &Frame {

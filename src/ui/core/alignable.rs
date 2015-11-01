@@ -1,11 +1,13 @@
 use core::position::{HasSize, HasPosition};
 
+#[derive(Clone)]
 pub enum VerticalAlign {
     Top,
     Middle,
     Bottom,
 }
 
+#[derive(Clone)]
 pub enum HorizontalAlign {
     Left,
     Middle,

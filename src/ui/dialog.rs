@@ -135,6 +135,10 @@ impl Widget for Dialog {
         self.frame.draw_box();
     }
 
+    fn resize(&mut self, new_size: Size) {
+        self.frame.resize(new_size);
+    }
+
     fn frame(&self) -> &Frame {
         &self.frame
     }

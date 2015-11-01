@@ -1,4 +1,4 @@
-use core::position::{Pos, HasSize, HasPosition};
+use core::position::{Size, Pos, HasSize, HasPosition};
 use core::cellbuffer::CellAccessor;
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -90,6 +90,10 @@ impl Widget for HorizontalLayout {
 
     fn draw_box(&mut self) {
         self.frame.draw_box();
+    }
+
+    fn resize(&mut self, new_size: Size) {
+        self.frame.resize(new_size);
     }
 
     fn frame(&self) -> &Frame {
