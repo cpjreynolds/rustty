@@ -125,6 +125,10 @@ impl Widget for Canvas {
         self.frame.align(parent, halign, valign, margin);
     }
 
+    fn resize(&mut self, new_size: Size) {
+        self.frame.resize(new_size);
+    }
+
     fn draw_box(&mut self) {
         self.frame.draw_box();
     }

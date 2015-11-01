@@ -28,19 +28,20 @@ impl Label {
             x: 0,
             y: 0,
             t_halign: HorizontalAlign::Left,
-            t_valign: VerticalAlign::Top,
-            t_margin: (1, 1)
+            t_valign: VerticalAlign::Middle,
+            t_margin: (0, 0)
         }
     }
 
-    pub fn from_str(s: String) -> Label {
+    pub fn from_str<S: Into<String>>(s: S) -> Label {
+        let s = s.into();
         Label {
             frame: Frame::new(s.len(), 1),
-            text: s,
+            text: s.into(),
             x: 0,
             y: 0,
             t_halign: HorizontalAlign::Left,
-            t_valign: VerticalAlign::Top,
+            t_valign: VerticalAlign::Middle,
             t_margin: (1, 1)
         }
     }

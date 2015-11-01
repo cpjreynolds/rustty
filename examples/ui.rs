@@ -47,16 +47,10 @@ fn main() {
                 Some(ButtonResult::Ok)          => break 'main,
                 Some(ButtonResult::Custom(i))   => {
                     let msg = if i == 1 { "Foo!" } else { "Bar!" };
-                    /*
-                    let w = maindlg.frame_mut();
-                    let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
-                    let y = w.valign_line(msg, VerticalAlign::Middle, 1);
-                    w.printline(x, y, msg);
-                    */
-                    let mut label = Label::from_str(msg.to_string());
+
+                    let mut label = Label::from_str(msg);
                     label.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
-                    label.draw(maindlg.frame_mut());
-                    
+                    label.draw(maindlg.frame_mut()); 
                 },
                 _ => {},
             }

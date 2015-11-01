@@ -6,7 +6,6 @@ use rustty::{
 };
 
 use rustty::ui::core::{
-    Painter,
     Widget,
     HorizontalAlign,
     VerticalAlign,
@@ -16,6 +15,7 @@ use rustty::ui::core::{
 
 use rustty::ui::{
     Dialog,
+    Label,
     StdButton,
     VerticalLayout,
     HorizontalLayout
@@ -29,16 +29,17 @@ fn create_maindlg() -> Dialog {
     let mut maindlg = Dialog::new(60, 12);
 
     // Text and alignment data to be used for displaying to dialog
-    let s = "Hello! This is a showcase of the ui module!";
-    let s2 = "Here's a horizontal layout configuration.";
-    let x = maindlg.frame().halign_line(s, HorizontalAlign::Middle, 1);
-    let x2 = maindlg.frame().halign_line(s2, HorizontalAlign::Middle, 0);
-    maindlg.frame_mut().printline(x, 2, s);
-    maindlg.frame_mut().printline(x2, 3, s2);
+    let mut label1 = Label::from_str("Hello! This is a showcase of the ui module!");
+    let mut label2 = Label::from_str("Here's a horizontal layout configuration.");
+    label1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, (0, 1));
+    label2.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, (0, 2));
+    
+    label1.draw(maindlg.frame_mut());
+    label2.draw(maindlg.frame_mut());
 
     let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
     let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
-    let b3 = StdButton::new("Bar!", 'b', ButtonResult::Custom(2));
+    let b3 = StdButton::new("Bar!", 'a', ButtonResult::Custom(2));
     let b4 = StdButton::new("Juu!", 'j', ButtonResult::Custom(3));
     let b5 = StdButton::new("Tuu!", 't', ButtonResult::Custom(4));
     let b6 = StdButton::new("Boo!", 'b', ButtonResult::Custom(5));
@@ -60,9 +61,9 @@ fn create_hdlg(rows: usize) -> Dialog {
     let mut hdlg = Dialog::new(20, rows/4);
 
     // Text and alignment data to be used for displaying to dialog
-    let s = "Vertical layout";
-    let x = hdlg.frame().halign_line(s, HorizontalAlign::Middle, 1);
-    hdlg.frame_mut().printline(x, 2, s);
+    let mut label = Label::from_str("Vertical layout");
+    label.pack(&hdlg, HorizontalAlign::Middle, VerticalAlign::Top, (0,1));
+    label.draw(hdlg.frame_mut());
 
     let b1 = StdButton::new("Yhh!", 'y', ButtonResult::Custom(1));
     let b2 = StdButton::new("Vpp!", 'v', ButtonResult::Custom(2));
@@ -100,10 +101,10 @@ fn main() {
                         8   =>  "Wgg!",
                         _   =>  ""
                     };
-                    let w = maindlg.frame_mut();
-                    let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
-                    let y = w.valign_line(msg, VerticalAlign::Middle, 1);
-                    w.printline(x, y, msg);
+
+                    let mut result = Label::from_str(msg);
+                    result.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,1));
+                    result.draw(maindlg.frame_mut());
                 },
                 _ => {},
             }
@@ -116,10 +117,10 @@ fn main() {
                         3 => "Wgg!",
                         _ => ""
                     };
-                    let w = hdlg.frame_mut();
-                    let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
-                    let y = w.valign_line(msg, VerticalAlign::Middle, 1);
-                    w.printline(x, y, msg);
+
+                    let mut result = Label::from_str(msg);
+                    result.pack(&hdlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,1));
+                    result.draw(hdlg.frame_mut());
                 },
                 _ => {},
             }
