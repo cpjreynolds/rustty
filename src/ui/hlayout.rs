@@ -47,7 +47,7 @@ pub struct HorizontalLayout {
 
 impl HorizontalLayout {
     /// Construct a `HorizontalLayout` object from a vector of boxed objects that implement
-    /// [Button](ui/core/button/trait.Button.html). The current API for this function will
+    /// [Button](core/button/trait.Button.html). The current API for this function will
     /// change *very* soon
     ///
     /// # Examples

@@ -38,7 +38,7 @@ pub trait Alignable: HasSize + HasPosition {
         };
         self.set_origin((x, newy));
     }
-
+    
     fn align(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign, 
              margin: (usize, usize)) {
         self.halign(parent, halign, margin.0);

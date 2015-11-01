@@ -9,8 +9,6 @@ use rustty::{
 
 use rustty::ui::core::{
     Widget,
-    Frame,
-    Alignable,
     HorizontalAlign,
     VerticalAlign,
     ButtonResult
@@ -18,7 +16,8 @@ use rustty::ui::core::{
 
 use rustty::ui::{
     Dialog,
-    StdButton
+    StdButton,
+    Canvas
 };
 
 const BLOCK: char = '\u{25AA}';
@@ -45,11 +44,11 @@ fn main() {
     // Create our terminal, dialog frame and main canvas
     let mut term = Terminal::new().unwrap();
     let mut optiondlg = create_optiondlg();
-    let mut canvas = Frame::new(term.size().0, term.size().1 - 4);
+    let mut canvas = Canvas::new(term.size().0, term.size().1 - 4);
 
     // Align canvas to top left, and dialog to bottom right
     optiondlg.pack(&term, HorizontalAlign::Right, VerticalAlign::Bottom, (0,0));
-    canvas.align(&term, HorizontalAlign::Left, VerticalAlign::Top, (0,0));
+    canvas.pack(&term, HorizontalAlign::Left, VerticalAlign::Top, (0,0));
     
     let mut radius = 10u32;
     'main: loop {
@@ -88,7 +87,7 @@ fn main() {
         }
 
         // draw the canvas, dialog frame and swap buffers
-        canvas.draw_into(&mut term);
+        canvas.draw(&mut term);
         optiondlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }

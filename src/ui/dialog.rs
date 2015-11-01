@@ -21,7 +21,7 @@ use ui::core::{
 /// # Examples
 ///
 /// ```
-/// use rustty::ui::core::{VerticalAlign, HorizontalAlign, ButtonResult, Widget, Painter};
+/// use rustty::ui::core::{VerticalAlign, HorizontalAlign, ButtonResult, Widget};
 /// use rustty::ui::{Dialog, StdButton};
 ///
 /// let mut maindlg = Dialog::new(60, 10);
@@ -29,9 +29,9 @@ use ui::core::{
 /// let mut b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
 /// b1.pack(&maindlg, HorizontalAlign::Left, VerticalAlign::Middle, (1,1));
 ///
-/// maindlg.frame_mut().draw_box();
+/// maindlg.draw_box();
 /// // draw to terminal
-/// // maindlg.frame.draw_into(&mut term);
+/// // maindlg.draw(&mut term);
 /// ```
 ///
 pub struct Dialog {
@@ -61,7 +61,7 @@ impl Dialog {
         }
     }
 
-    /// Add an existing widget that implements the [Button](ui/core/button/trait.Button.html)
+    /// Add an existing widget that implements the [Button](core/button/trait.Button.html)
     /// trait.
     ///
     /// # Examples
@@ -82,7 +82,7 @@ impl Dialog {
         self.buttons.last_mut().unwrap().frame().draw_into(&mut self.frame);
     }
 
-    /// Add an existing widget that implements the [Layout](ui/core/layout/trait.Layout.html)
+    /// Add an existing widget that implements the [Layout](core/layout/trait.Layout.html)
     /// trait. **NEEDS A REWORK**, the way of passing in a vector of buttons is ugly and a 
     /// very bad API.
     ///
