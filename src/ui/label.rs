@@ -22,8 +22,8 @@ use ui::core::{
 ///
 /// let mut label = Label::from_str("Hi, this is an example!");
 /// label.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
-/// label.draw(maindlg.frame_mut());
 ///
+/// maindlg.add_label(label);
 /// maindlg.draw_box();
 /// ```
 ///
@@ -161,8 +161,6 @@ impl Widget for Label {
     fn pack(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign,
                 margin: (usize, usize)) {
         self.frame.align(parent, halign, valign, margin);
-        self.x = self.frame.halign_line(&self.text, self.t_halign.clone(), margin.0);
-        self.y = self.frame.valign_line(&self.text, self.t_valign.clone(), margin.1);
     }
 
     fn draw_box(&mut self) {
