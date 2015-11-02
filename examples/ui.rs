@@ -50,7 +50,7 @@ fn main() {
 
                     let mut label = Label::from_str(msg);
                     label.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
-                    label.draw(maindlg.frame_mut()); 
+                    maindlg.add_label(label);
                 },
                 _ => {},
             }

@@ -16,6 +16,8 @@ use ui::core::{
     Painter
 };
 
+use ui::label::Label;
+
 /// Pack labels, buttons and other widgets into dialogs
 ///
 /// # Examples
@@ -109,6 +111,25 @@ impl Dialog {
         self.layouts.last_mut().unwrap().align_elems();
         self.layouts.last_mut().unwrap().frame().draw_into(&mut self.frame);
         self.layouts.last_mut().unwrap().forward_keys(&mut self.accel2result);
+    }
+
+    /// Add an existing label that contains some text.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::core::{HorizontalAlign, VerticalAlign, Widget};
+    /// use rustty::ui::{Dialog, Label};
+    ///
+    /// let mut maindlg = Dialog::new(60, 10);
+    /// let mut lbl = Label::from_str("Foo");
+    /// lbl.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
+    ///
+    /// maindlg.add_label(lbl);
+    /// ```
+    ///
+    pub fn add_label(&mut self, mut label: Label) {
+        label.draw(&mut self.frame);
     }
 
     /// Checks whether the char passed is a valid key for any buttons currently
