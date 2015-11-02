@@ -13,7 +13,7 @@ use ui::core::{
     find_accel_char_index
 };
 
-/// A standard button that returns some result based on
+/// Standard button that returns some result based on
 /// whether a key is pressed
 /// 
 /// # Examples

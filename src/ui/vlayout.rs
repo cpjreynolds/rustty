@@ -14,8 +14,8 @@ use ui::core::{
     ButtonResult
 };
 
-/// A special widget that encapsulates buttons and aligns them vertically for
-/// drawing within a `Dialog`
+/// Hold buttons and align them vertically for drawing within a 
+/// [Dialog](struct.Dialog.html)
 ///
 /// # Examples
 ///

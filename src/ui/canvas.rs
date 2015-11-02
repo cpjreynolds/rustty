@@ -10,7 +10,7 @@ use ui::core::{
     Painter
 };
 
-/// A logical clone of [Frame](core/frame/struct.Frame.html) that exposes backend
+/// Logical clone of [Frame](core/frame/struct.Frame.html) that exposes backend
 /// functionality for users without breaking the API rules
 ///
 /// # Examples
