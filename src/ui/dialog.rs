@@ -16,7 +16,7 @@ use ui::core::{
     Painter
 };
 
-/// A Widget that can bind buttons and display text.
+/// Pack labels, buttons and other widgets into dialogs
 ///
 /// # Examples
 ///
