@@ -119,6 +119,8 @@ impl Label {
     /// # Examples
     ///
     /// ```
+    /// use rustty::HasSize;
+    /// use rustty::ui::core::Widget;
     /// use rustty::ui::Label;
     ///
     /// let mut label1 = Label::new(20, 3);
@@ -126,9 +128,11 @@ impl Label {
     ///
     /// let mut label2 = Label::from_str("too small");  // label is size (9x1)
     /// label2.set_text("This is too big");             // label is size (15x1)
+    /// assert_eq!(label2.frame().size(), (15, 1));
     ///
     /// let mut label3 = Label::new(4, 2);              // label is size (4x2)
-    /// label3.set_text("Too big to fit!");             // label is size (7x2) 
+    /// label3.set_text("Too big to fit!");             // label is size (8x2) 
+    /// assert_eq!(label3.frame().size(), (8, 2));
     /// ```
     ///
     pub fn set_text<S: Into<String>>(&mut self, new_str: S) {
