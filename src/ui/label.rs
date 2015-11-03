@@ -1,3 +1,4 @@
+use std::ascii::AsciiExt;
 use core::position::{Size, HasSize};
 use core::cellbuffer::CellAccessor;
 
@@ -34,7 +35,7 @@ pub struct Label {
     y: usize,
     t_halign: HorizontalAlign,
     t_valign: VerticalAlign,
-    t_margin: (usize, usize)
+    t_margin: (usize, usize),
 }
 
 impl Label {
@@ -136,8 +137,9 @@ impl Label {
     /// ```
     ///
     pub fn set_text<S: Into<String>>(&mut self, new_str: S) {
+        
         let new_str = new_str.into();
-        self.text = new_str;
+        self.text = new_str; 
         let (framex, framey) = self.frame.size();
         if self.text.len() > (framex * framey) {
             // Extend widget horizontally such that it can accomodate the new
@@ -145,7 +147,7 @@ impl Label {
             //      L   : length of new text
             //      CxR : dimensions of widget 
             //      ciel(L - C * R) / R + C
-            let new_x = (self.text.len() - framex * framey) as f32 / framey as f32;
+            let new_x = (self.text.len() - (framex-1) * framey) as f32 / framey as f32;
             let new_x = new_x.ceil() as usize + framex;
             self.frame.resize((new_x, framey));
         }
@@ -154,7 +156,61 @@ impl Label {
 
 impl Widget for Label {
     fn draw(&mut self, parent: &mut CellAccessor) {
-        self.frame.printline(self.x, self.y, &self.text);
+        let mut split_parts: Vec<String> = vec!["".to_string()];
+        let mut parse = self.text.clone();
+        let frame_width = self.frame.size().0;
+        // This loop below will accomplish splitting a line of text
+        // into lines that adhere to the amount of rows in a label
+        loop {
+            // Look for a word until a whitespace is reached
+            if let Some(loc) = parse.find(char::is_whitespace) {
+                let line_len = split_parts.last().unwrap().len();
+                let tmp = parse[..loc].to_owned();
+                // If the word can fit on the current line, add it
+                if line_len + tmp.len() + self.t_margin.0 < frame_width {
+                    split_parts.last_mut().unwrap().push_str(&tmp);
+                } else {
+                    split_parts.push(tmp.to_owned());
+                }
+                parse = parse[loc..].to_owned();
+            } else {
+                // If no whitespace detected, there may still be one
+                // more word so attempt to add it
+                if parse.len() != 0 {
+                    let line_len = split_parts.last().unwrap().len();
+                    if line_len + parse.len() + self.t_margin.0 < frame_width {
+                        split_parts.last_mut().unwrap().push_str(&parse);
+                    } else {
+                        split_parts.push(parse);
+                    }
+                }
+                break;
+            }
+
+            // Look for the range of spaces between words
+            if let Some(loc) = parse.find(|c: char| c.is_ascii() && c != ' ') {
+                let line_len = split_parts.last().unwrap().len();
+                let tmp = parse[..loc].to_owned();
+                // If the next word can fit on the current line, do so
+                if line_len + tmp.len() + self.t_margin.0 < frame_width {
+                    split_parts.last_mut().unwrap().push_str(&tmp);
+                } else {
+                    split_parts.push("".to_string());
+                }
+                parse = parse[loc..].to_owned();
+            } else {
+                // We don't care if there's spaces at the end, so don't check
+                break;
+            }
+        }
+      
+        if split_parts.len() > self.frame.size().1 - self.t_margin.1 {
+            self.frame.resize((frame_width, split_parts.len()));
+        }
+
+        for (i, item) in split_parts.iter().enumerate() {
+            self.frame.printline(self.x, self.y + i, &item);
+        }
         self.frame.draw_into(parent);
     }
 
