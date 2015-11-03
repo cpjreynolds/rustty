@@ -1,18 +1,5 @@
 use core::position::{HasSize, HasPosition};
-
-#[derive(Clone)]
-pub enum VerticalAlign {
-    Top,
-    Middle,
-    Bottom,
-}
-
-#[derive(Clone)]
-pub enum HorizontalAlign {
-    Left,
-    Middle,
-    Right,
-}
+use ui::core::attributes::{HorizontalAlign, VerticalAlign};
 
 pub trait Alignable: HasSize + HasPosition {
     fn halign(&mut self, parent: &HasSize, halign: HorizontalAlign, margin: usize) {

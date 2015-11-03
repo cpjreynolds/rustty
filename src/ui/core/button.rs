@@ -1,11 +1,4 @@
-use ui::core::Widget;
-
-#[derive(Clone, Copy)]
-pub enum ButtonResult {
-    Ok,
-    Cancel,
-    Custom(i32),
-}
+use ui::core::{ButtonResult, Widget};
 
 /// Helper function for finding the location of the key in the string
 /// that is to be bolded

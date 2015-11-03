@@ -1,6 +1,6 @@
 use core::position::{Size, HasSize};
 use core::cellbuffer::CellAccessor;
-use ui::core::alignable::{HorizontalAlign, VerticalAlign};
+use ui::core::attributes::{HorizontalAlign, VerticalAlign};
 use ui::core::frame::Frame;
 
 /// Widgets are the foundation of UI, all frontend objects inherit the widget
