@@ -26,16 +26,17 @@ fn boxify(vec: Vec<StdButton>) -> Vec<Box<Button>> {
 }
 
 fn create_maindlg() -> Dialog {
-    let mut maindlg = Dialog::new(60, 12);
+    let mut maindlg = Dialog::new(55, 12);
 
-    // Text and alignment data to be used for displaying to dialog
-    let mut label1 = Label::from_str("Hello! This is a showcase of the ui module!");
-    let mut label2 = Label::from_str("Here's a horizontal layout configuration.");
+    // Text and alignment data to be used for displaying to dialog 
+    let mut label1 = Label::new(45, 2);
+
+    label1.set_text("Hello! This is a showcase of the ui module! \
+                    Here's a horizontal layout configuration.");
+    // Text is aligned in respect to the label, usually don't want margins
+    label1.align_text(HorizontalAlign::Middle, VerticalAlign::Top, (0, 0));    
     label1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, (0, 1));
-    label2.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, (0, 2));
-    
-    label1.draw(maindlg.frame_mut());
-    label2.draw(maindlg.frame_mut());
+    maindlg.add_label(label1);
 
     let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
     let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
@@ -57,34 +58,34 @@ fn create_maindlg() -> Dialog {
     maindlg
 }
 
-fn create_hdlg(rows: usize) -> Dialog {
-    let mut hdlg = Dialog::new(20, rows/4);
+fn create_vdlg(rows: usize) -> Dialog {
+    let mut vdlg = Dialog::new(20, rows/4);
 
     // Text and alignment data to be used for displaying to dialog
     let mut label = Label::from_str("Vertical layout");
-    label.pack(&hdlg, HorizontalAlign::Middle, VerticalAlign::Top, (0,1));
-    label.draw(hdlg.frame_mut());
+    label.pack(&vdlg, HorizontalAlign::Middle, VerticalAlign::Top, (0,1));
+    vdlg.add_label(label);
 
     let b1 = StdButton::new("Yhh!", 'y', ButtonResult::Custom(1));
     let b2 = StdButton::new("Vpp!", 'v', ButtonResult::Custom(2));
     let b3 = StdButton::new("Wgg!", 'w', ButtonResult::Custom(3));
    
     let mut vlayout = VerticalLayout::from_vec(boxify(vec![b1, b2, b3]), 0);
-    vlayout.pack(&hdlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 2));
-    hdlg.add_layout(vlayout);
+    vlayout.pack(&vdlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 2));
+    vdlg.add_layout(vlayout);
 
-    hdlg.draw_box();
-    hdlg
+    vdlg.draw_box();
+    vdlg
 }
 
 
 fn main() {
     let mut term = Terminal::new().unwrap();
     let mut maindlg = create_maindlg();
-    let mut hdlg = create_hdlg(term.rows());
-    // Align main dialog frame with the middle of the screen, and hdlg with the bottom
+    let mut vdlg = create_vdlg(term.rows());
+    // Align main dialog frame with the middle of the screen, and vdlg with the bottom
     maindlg.pack(&term, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
-    hdlg.pack(&term, HorizontalAlign::Left, VerticalAlign::Middle, (0,0));
+    vdlg.pack(&term, HorizontalAlign::Left, VerticalAlign::Middle, (0,0));
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
             match maindlg.result_for_key(ch) {
@@ -109,7 +110,7 @@ fn main() {
                 _ => {},
             }
 
-            match hdlg.result_for_key(ch) {
+            match vdlg.result_for_key(ch) {
                 Some(ButtonResult::Custom(i)) => {
                     let msg = match i {
                         1 => "Yhh!",
@@ -119,8 +120,8 @@ fn main() {
                     };
 
                     let mut result = Label::from_str(msg);
-                    result.pack(&hdlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,1));
-                    result.draw(hdlg.frame_mut());
+                    result.pack(&vdlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,1));
+                    result.draw(vdlg.frame_mut());
                 },
                 _ => {},
             }
@@ -128,7 +129,7 @@ fn main() {
 
         // Draw widgets to screen
         maindlg.draw(&mut term);
-        hdlg.draw(&mut term);
+        vdlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }
 }

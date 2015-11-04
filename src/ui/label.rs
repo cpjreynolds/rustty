@@ -86,7 +86,7 @@ impl Label {
             y: 0,
             t_halign: HorizontalAlign::Left,
             t_valign: VerticalAlign::Middle,
-            t_margin: (1, 1),
+            t_margin: (0, 0),
         }
     }
 
@@ -158,7 +158,7 @@ impl Label {
                 // If no whitespace detected, there may still be one
                 // more word so attempt to add it
                 if parse.len() != 0 {
-                    let line_len = self.text.last().unwrap().len();
+                    let line_len = line.len();
                     if line_len + parse.len() + self.t_margin.0 < framex {
                         line.push_str(&parse);
                         self.text.push(line);
