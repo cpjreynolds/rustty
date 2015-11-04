@@ -90,7 +90,9 @@ impl Label {
         }
     }
 
-    /// Specify a custom alignment for the text within the widget
+    /// Specify a custom alignment for the text within the widget. Each line
+    /// drawn within the label will adhere to the alignments passed for the
+    /// text. *note that text alignment is with respect to the *label*
     ///
     /// # Examples
     ///
@@ -105,14 +107,15 @@ impl Label {
     ///
     pub fn align_text(&mut self, halign: HorizontalAlign, valign: VerticalAlign,
                     margin: (usize, usize)) {
-        self.t_halign = halign.clone();
-        self.t_valign = valign.clone();
+        self.t_halign = halign;
+        self.t_valign = valign;
         self.t_margin = margin;
     }
 
     /// Set the text of the widget to the passed `&str` or `String`. If the
-    /// widget does not have enough room to display the new text, the widget 
-    /// is resized **horizontally** to accomodate the new size
+    /// widget does not have enough room to display the new text, the label 
+    /// will only show the truncated text. *resize()* must be called to extend
+    /// the size of the label.
     ///
     /// # Examples
     ///
@@ -123,14 +126,6 @@ impl Label {
     ///
     /// let mut label1 = Label::new(20, 3);
     /// label1.set_text("Initial text");
-    ///
-    /// let mut label2 = Label::from_str("too small");  // label is size (9x1)
-    /// label2.set_text("This is too big");             // label is size (15x1)
-    /// assert_eq!(label2.frame().size(), (16, 1));
-    ///
-    /// let mut label3 = Label::new(4, 2);              // label is size (4x2)
-    /// label3.set_text("Too big to fit!");             // label is size (8x2) 
-    /// assert_eq!(label3.frame().size(), (9, 2));
     /// ```
     ///
     pub fn set_text<S: Into<String>>(&mut self, new_str: S) { 
@@ -193,6 +188,8 @@ impl Label {
 
 impl Widget for Label {
     fn draw(&mut self, parent: &mut CellAccessor) {
+        // For every line to be written, align it correctly as defined by the user in 
+        // align_text, if not this text will be left and middle aligned by default
         for (i, item) in self.text.iter().enumerate() {
             self.x = self.frame.halign_line(&item, self.t_halign.clone(), self.t_margin.0);
             self.y = self.frame.valign_line(&item, self.t_valign.clone(), self.t_margin.1);
