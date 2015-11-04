@@ -24,4 +24,4 @@ pub use ui::core::frame::Frame;
 #[doc(hidden)]
 pub use ui::core::button::{Button, find_accel_char_index};
 #[doc(hidden)]
-pub use ui::core::attributes::{ButtonResult, HorizontalAlign, VerticalAlign, Resizable};
+pub use ui::core::attributes::{ButtonResult, HorizontalAlign, VerticalAlign};

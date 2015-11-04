@@ -18,9 +18,3 @@ pub enum ButtonResult {
     Cancel,
     Custom(i32),
 }
-
-pub enum Resizable {
-    Fixed,
-    ResizeX,
-    ResizeY
-}
