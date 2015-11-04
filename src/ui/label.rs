@@ -53,7 +53,7 @@ impl Label {
     pub fn new(cols: usize, rows: usize) -> Label {
         Label {
             frame: Frame::new(cols, rows),
-            text: vec!["".to_string()],
+            text: Vec::new(),
             x: 0,
             y: 0,
             t_halign: HorizontalAlign::Left,
@@ -108,9 +108,6 @@ impl Label {
         self.t_halign = halign.clone();
         self.t_valign = valign.clone();
         self.t_margin = margin;
-
-        self.x = self.frame.halign_line(&self.text[0], halign, margin.0);
-        self.y = self.frame.valign_line(&self.text[0], valign, margin.1);
     }
 
     /// Set the text of the widget to the passed `&str` or `String`. If the
@@ -138,19 +135,23 @@ impl Label {
     ///
     pub fn set_text<S: Into<String>>(&mut self, new_str: S) { 
         let (framex, _) = self.frame.size();
+        self.text = Vec::new();
         let mut parse = new_str.into();
+        let mut line = String::new();
         // This loop below will accomplish splitting a line of text
         // into lines that adhere to the amount of rows in a label
         loop {
             // Look for a word until a whitespace is reached
             if let Some(loc) = parse.find(char::is_whitespace) {
-                let line_len = self.text.last().unwrap().len();
+                let line_len = line.len();
                 let tmp = parse[..loc].to_owned();
                 // If the word can fit on the current line, add it
                 if line_len + tmp.len() + self.t_margin.0 < framex {
-                    self.text.last_mut().unwrap().push_str(&tmp);
+                    line.push_str(&tmp);
                 } else {
-                    self.text.push(tmp.to_owned());
+                    line = line.trim_right().to_owned();
+                    self.text.push(line);
+                    line = tmp.to_owned();
                 }
                 parse = parse[loc..].to_owned();
             } else {
@@ -159,7 +160,8 @@ impl Label {
                 if parse.len() != 0 {
                     let line_len = self.text.last().unwrap().len();
                     if line_len + parse.len() + self.t_margin.0 < framex {
-                        self.text.last_mut().unwrap().push_str(&parse);
+                        line.push_str(&parse);
+                        self.text.push(line);
                     } else {
                         self.text.push(parse);
                     }
@@ -169,13 +171,15 @@ impl Label {
 
             // Look for the range of spaces between words
             if let Some(loc) = parse.find(|c: char| c.is_ascii() && c != ' ') {
-                let line_len = self.text.last().unwrap().len();
+                let line_len = line.len();
                 let tmp = parse[..loc].to_owned();
                 // If the next word can fit on the current line, do so
                 if line_len + tmp.len() + self.t_margin.0 < framex {
-                    self.text.last_mut().unwrap().push_str(&tmp);
+                    line.push_str(&tmp);
                 } else {
-                    self.text.push("".to_string());
+                    line = line.trim_right().to_owned();
+                    self.text.push(line);
+                    line = "".to_string();
                 }
                 parse = parse[loc..].to_owned();
             } else {
@@ -190,6 +194,8 @@ impl Label {
 impl Widget for Label {
     fn draw(&mut self, parent: &mut CellAccessor) {
         for (i, item) in self.text.iter().enumerate() {
+            self.x = self.frame.halign_line(&item, self.t_halign.clone(), self.t_margin.0);
+            self.y = self.frame.valign_line(&item, self.t_valign.clone(), self.t_margin.1);
             self.frame.printline(self.x, self.y + i, &item);
         }
         self.frame.draw_into(parent);
