@@ -5,10 +5,6 @@ rust:
     - beta
     - stable
 
-cache:
-    directories:
-        - target
-
 script:
     - cargo build --verbose
     - cargo test --verbose

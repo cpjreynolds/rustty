@@ -5,85 +5,92 @@ use rustty::{
     Event,
 };
 
-use rustty::ui::{
-    Painter,
-    Dialog,
-    DialogResult,
-    Alignable,
+use rustty::ui::core::{
+    Widget,
     HorizontalAlign,
     VerticalAlign,
-    ButtonLayout
+    ButtonResult,
+    Button
 };
 
+use rustty::ui::{
+    Dialog,
+    Label,
+    StdButton,
+    VerticalLayout,
+    HorizontalLayout
+};
+
+fn boxify(vec: Vec<StdButton>) -> Vec<Box<Button>> {
+    vec.into_iter().map(Box::new).map(|x| x as Box<Button>).collect()
+}
+
 fn create_maindlg() -> Dialog {
-    // Create a dialog window 60 units wide and 12 units high
-    let mut maindlg = Dialog::new(60, 12);
+    let mut maindlg = Dialog::new(55, 12);
 
-    // Text and alignment data to be used for displaying to dialog
-    let s = "Hello! This is a showcase of the ui module!";
-    let s2 = "Here's a vertical layout configuration.";
-    let x = maindlg.window().halign_line(s, HorizontalAlign::Middle, 1);
-    let x2 = maindlg.window().halign_line(s2, HorizontalAlign::Middle, 0);
-    maindlg.window_mut().printline(x, 2, s);
-    maindlg.window_mut().printline(x2, 3, s2);
-    
-    // Create the left column of buttons, these are buttons 0, 1, 2
-    maindlg.add_button("Foo", 'f', DialogResult::Custom(1));
-    maindlg.add_button("Bar", 'b', DialogResult::Custom(2));
-    maindlg.add_button("Quit", 'q', DialogResult::Ok);
-    maindlg.draw_buttons_subset(0, 3, ButtonLayout::Vertical(HorizontalAlign::Left));
+    // Text and alignment data to be used for displaying to dialog 
+    let mut label1 = Label::new(45, 2);
 
-    // Create the middle column of buttons, these are buttons 3, 4, 5
-    maindlg.add_button("Juu", 'j', DialogResult::Custom(3));
-    maindlg.add_button("Too", 't', DialogResult::Custom(4));
-    maindlg.add_button("Boo", 'b', DialogResult::Custom(5));
-    maindlg.draw_buttons_subset(3, 6, ButtonLayout::Vertical(HorizontalAlign::Middle));
+    label1.set_text("Hello! This is a showcase of the ui module! \
+                    Here's a horizontal layout configuration.");
+    // Text is aligned in respect to the label, usually don't want margins
+    label1.align_text(HorizontalAlign::Middle, VerticalAlign::Top, (0, 0));    
+    label1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Top, (0, 1));
+    maindlg.add_label(label1);
 
-    // Create the right column of buttons, these are buttons 6, 7, 8
-    maindlg.add_button("Yhh", 'y', DialogResult::Custom(6));
-    maindlg.add_button("Vpp", 'v', DialogResult::Custom(7));
-    maindlg.add_button("Wgg", 'w', DialogResult::Custom(8));
-    maindlg.draw_buttons_subset(6, 9, ButtonLayout::Vertical(HorizontalAlign::Right));
+    let b1 = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    let b2 = StdButton::new("Foo!", 'f', ButtonResult::Custom(1));
+    let b3 = StdButton::new("Bar!", 'a', ButtonResult::Custom(2));
+    let b4 = StdButton::new("Juu!", 'j', ButtonResult::Custom(3));
+    let b5 = StdButton::new("Tuu!", 't', ButtonResult::Custom(4));
+    let b6 = StdButton::new("Boo!", 'b', ButtonResult::Custom(5));
+
+    let mut hlayout1 = HorizontalLayout::from_vec(boxify(vec![b1, b2, b3]), 1);
+    hlayout1.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 2));
+    maindlg.add_layout(hlayout1);
+
+    let mut hlayout2 = HorizontalLayout::from_vec(boxify(vec![b4, b5, b6]), 1);
+    hlayout2.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 3));
+    maindlg.add_layout(hlayout2);
 
     // Draw the outline for the dialog
-    maindlg.window_mut().draw_box();
+    maindlg.draw_box();
     maindlg
 }
 
-fn create_hdlg(cols: usize) -> Dialog {
-    // Create a dialog window that's as wide as the terminal, and 7 units high
-    let mut hdlg = Dialog::new(cols, 7);
+fn create_vdlg(rows: usize) -> Dialog {
+    let mut vdlg = Dialog::new(20, rows/4);
 
     // Text and alignment data to be used for displaying to dialog
-    let s = "Here's a horizontal layout configuration.";
-    let x = hdlg.window().halign_line(s, HorizontalAlign::Middle, 1);
-    hdlg.window_mut().printline(x, 2, s);
+    let mut label = Label::from_str("Vertical layout");
+    label.pack(&vdlg, HorizontalAlign::Middle, VerticalAlign::Top, (0,1));
+    vdlg.add_label(label);
 
-    // Create a row of buttons to be displayed
-    hdlg.add_button("Lo", 'l', DialogResult::Ok);
-    hdlg.add_button("Yo", 'y', DialogResult::Ok);
-    hdlg.add_button("Ho", 'h', DialogResult::Ok);
-    hdlg.add_button("Uo", 'u', DialogResult::Ok);
+    let b1 = StdButton::new("Yhh!", 'y', ButtonResult::Custom(1));
+    let b2 = StdButton::new("Vpp!", 'v', ButtonResult::Custom(2));
+    let b3 = StdButton::new("Wgg!", 'w', ButtonResult::Custom(3));
+   
+    let mut vlayout = VerticalLayout::from_vec(boxify(vec![b1, b2, b3]), 0);
+    vlayout.pack(&vdlg, HorizontalAlign::Middle, VerticalAlign::Bottom, (0, 2));
+    vdlg.add_layout(vlayout);
 
-    // Draw all buttons horizontally, and draw outline of dialog
-    hdlg.draw_buttons(ButtonLayout::Horizontal(2));
-    hdlg.window_mut().draw_box();
-    hdlg
+    vdlg.draw_box();
+    vdlg
 }
 
 
 fn main() {
     let mut term = Terminal::new().unwrap();
     let mut maindlg = create_maindlg();
-    let mut hdlg = create_hdlg(term.cols());
-    // Align main dialog window with the middle of the screen, and hdlg with the bottom
-    maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
-    hdlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Bottom, 0);
+    let mut vdlg = create_vdlg(term.rows());
+    // Align main dialog frame with the middle of the screen, and vdlg with the bottom
+    maindlg.pack(&term, HorizontalAlign::Middle, VerticalAlign::Middle, (0,0));
+    vdlg.pack(&term, HorizontalAlign::Left, VerticalAlign::Middle, (0,0));
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
             match maindlg.result_for_key(ch) {
-                Some(DialogResult::Ok) => break 'main,
-                Some(DialogResult::Custom(i)) => {
+                Some(ButtonResult::Ok) => break 'main,
+                Some(ButtonResult::Custom(i)) => {
                     let msg = match i { 
                         1   =>  "Foo!", 
                         2   =>  "Bar!",
@@ -95,18 +102,34 @@ fn main() {
                         8   =>  "Wgg!",
                         _   =>  ""
                     };
-                    let w = maindlg.window_mut();
-                    let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
-                    let y = w.valign_line(msg, VerticalAlign::Middle, 1);
-                    w.printline(x, y, msg);
+
+                    let mut result = Label::from_str(msg);
+                    result.pack(&maindlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,1));
+                    result.draw(maindlg.frame_mut());
+                },
+                _ => {},
+            }
+
+            match vdlg.result_for_key(ch) {
+                Some(ButtonResult::Custom(i)) => {
+                    let msg = match i {
+                        1 => "Yhh!",
+                        2 => "Vpp!",
+                        3 => "Wgg!",
+                        _ => ""
+                    };
+
+                    let mut result = Label::from_str(msg);
+                    result.pack(&vdlg, HorizontalAlign::Middle, VerticalAlign::Middle, (0,1));
+                    result.draw(vdlg.frame_mut());
                 },
                 _ => {},
             }
         }
 
         // Draw widgets to screen
-        maindlg.window().draw_into(&mut term);
-        hdlg.window().draw_into(&mut term);
+        maindlg.draw(&mut term);
+        vdlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }
 }
