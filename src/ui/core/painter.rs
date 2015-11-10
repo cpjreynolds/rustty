@@ -89,6 +89,10 @@ pub trait Painter: CellAccessor {
 
     fn draw_box(&mut self) {
         let (cols, rows) = self.size();
+        if cols <= 1 || rows <= 1 {
+            panic!("draw_box attempted on widget that does not meet \
+                    minimum size requirements. Must be greater than (1x1)");
+        }
         let corners = [
             (0, 0, '┌'),
             (cols-1, 0, '┐'),
