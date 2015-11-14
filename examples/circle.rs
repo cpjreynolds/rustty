@@ -21,7 +21,7 @@ const BLOCK: char = '\u{25AA}';
 fn create_optiondlg() -> Dialog {
     let mut optiondlg = Dialog::new(50, 6);
     let inc_label = "+ -> Increase Radius";
-    let dec_label = "+ -> Decrease Radius";
+    let dec_label = "- -> Decrease Radius";
     let q_label = "q -> Quit";
     let inc_pos = optiondlg.window().halign_line(inc_label, HorizontalAlign::Left, 1);
     let dec_pos = optiondlg.window().halign_line(dec_label, HorizontalAlign::Left, 1);
