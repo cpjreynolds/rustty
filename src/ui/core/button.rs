@@ -28,6 +28,6 @@ pub trait Button: Widget {
     /// If a button has a state involved, e.g. needs to keep track 
     /// of a certain event, this function will return the state of
     /// the button.
-    fn state(&self) -> bool { true }
+    fn state(&self) -> bool { false }
 }
 

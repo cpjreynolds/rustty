@@ -132,7 +132,27 @@ impl Dialog {
         label.draw(&mut self.frame);
     }
 
-    pub fn button_checked(&mut self, res: ButtonResult) {
+    /// Change the state of an existing CheckButton, if any exists, 
+    /// within the dialog. If an invalid button result is given, the
+    /// function will panic. *Note* StdButtons are still valid handles
+    /// for this function, however they will not actually do anything.
+    /// This function is for buttons that perform some action upon being
+    /// pressed.
+    ///
+    /// # Examples
+    /// 
+    /// ```ignore
+    /// // match character for dialog
+    /// match dialog.result_for_key(ch) {
+    ///     Some(ButtonResult::Ok)  => {
+    ///         dialog.button_pressed(ButtonResult::Custom(i));
+    ///         // do stuff ...
+    ///     },
+    ///     _                       => { }
+    /// }
+    /// ```
+    ///
+    pub fn button_pressed(&mut self, res: ButtonResult) {
         match self.buttons.iter_mut().find(|x| x.result() == res) {
             Some(i) => { i.pressed(); i.draw(&mut self.frame)}
             _       => { panic!("Not a valid button result for\
@@ -140,7 +160,29 @@ impl Dialog {
         }
     }
 
-    pub fn is_button_checked(&self, res: ButtonResult) -> bool {
+    /// For buttons that have a state manager, this function will return
+    /// the current state of the button. *CheckButton* for example uses 
+    /// a state to manage whether the button is checked, different actions
+    /// can be taken depending on the state once read.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// // match character for dialog
+    /// match dialog.result_for_key(ch) {
+    ///     Some(ButtonResult::Ok)  => {
+    ///         dialog.button_pressed(ButtonResult::Custom(i));
+    ///         if dialog.is_button_pressed(ButtonResult::Custom(i)) {
+    ///             // do ...
+    ///         } else {
+    ///             // do else ...
+    ///         }
+    ///     },
+    ///     _                       => { }
+    /// }
+    /// ```
+    ///
+    pub fn is_button_pressed(&self, res: ButtonResult) -> bool {
         match self.buttons.iter().find(|x| x.result() == res) {
             Some(i) => i.state(),
             _       => panic!("Not a valid button result for\

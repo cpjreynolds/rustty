@@ -24,7 +24,43 @@ pub struct CheckButton {
     check: char
 }
 
+/// A simple check button that manages an internal state which determines
+/// if the button is to be checked or not. The actual checking is handled
+/// by the user during an event loop.
+///
+/// # Examples
+///
+/// ```
+/// use rustty::ui::core::{HorizontalAlign, VerticalAlign, ButtonResult, Widget, Button};
+/// use rustty::ui::{Dialog, CheckButton};
+///
+/// let mut dlg = Dialog::new(60, 10);
+///
+/// let mut b1 = CheckButton::new("Foo", 'f', ButtonResult::Ok);
+/// b1.pack(&dlg, HorizontalAlign::Left, VerticalAlign::Bottom, (1,1));
+/// // Change the initial state of the button to checked
+/// b1.pressed();
+///
+/// dlg.add_button(b1);
+///
+/// // Now switch the state of the button bound to Ok, which unchecks b1
+/// dlg.button_pressed(ButtonResult::Ok);
+/// ```
+///
 impl CheckButton {
+    /// Constructs a new `CheckButton`, asking for the text to be displayed
+    /// by the button, the key to map to, and the result returned when the
+    /// key is detected.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::core::ButtonResult;
+    /// use rustty::ui::CheckButton;
+    ///
+    /// let mut b1 = CheckButton::new("Foo", 'f', ButtonResult::Ok);
+    /// ```
+    ///
     pub fn new(text: &str, accel: char, result: ButtonResult) -> CheckButton {
         let s = format!("{} {}", BALLOT, text);
         let width = s.chars().count();
