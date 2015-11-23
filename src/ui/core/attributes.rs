@@ -12,7 +12,7 @@ pub enum HorizontalAlign {
     Right,
 }
 
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum ButtonResult {
     Ok,
     Cancel,

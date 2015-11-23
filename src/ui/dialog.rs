@@ -81,7 +81,7 @@ impl Dialog {
         self.accel2result.insert(button.accel(), button.result());
         self.buttons.push(Box::new(button));
 
-        self.buttons.last_mut().unwrap().frame().draw_into(&mut self.frame);
+        self.buttons.last_mut().unwrap().draw(&mut self.frame);
     }
 
     /// Add an existing widget that implements the [Layout](core/layout/trait.Layout.html)
@@ -130,6 +130,22 @@ impl Dialog {
     ///
     pub fn add_label(&mut self, mut label: Label) {
         label.draw(&mut self.frame);
+    }
+
+    pub fn button_checked(&mut self, res: ButtonResult) {
+        match self.buttons.iter_mut().find(|x| x.result() == res) {
+            Some(i) => { i.pressed(); i.draw(&mut self.frame)}
+            _       => { panic!("Not a valid button result for\
+                                Dialog::button_checked()"); }
+        }
+    }
+
+    pub fn is_button_checked(&self, res: ButtonResult) -> bool {
+        match self.buttons.iter().find(|x| x.result() == res) {
+            Some(i) => i.state(),
+            _       => panic!("Not a valid button result for\
+                               Dialog::is_button_checked()")
+        }
     }
 
     /// Checks whether the char passed is a valid key for any buttons currently
