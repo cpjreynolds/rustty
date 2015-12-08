@@ -195,12 +195,12 @@ impl Driver {
 
         match dfn {
             DevFn::SetFg(attr) | DevFn::SetBg(attr) => {
-                let params = &[Param::Number(attr as i16)];
+                let params = &[Param::Number(attr as i32)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
             },
             DevFn::SetCursor(x, y) => {
-                let params = &[Param::Number(y as i16), Param::Number(x as i16)];
+                let params = &[Param::Number(y as i32), Param::Number(x as i32)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
             },
