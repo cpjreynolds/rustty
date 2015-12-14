@@ -167,7 +167,7 @@ impl Label {
             }
 
             // Look for the range of spaces between words
-            if let Some(loc) = parse.find(|c: char| c.is_ascii() && c != ' ') {
+            if let Some(loc) = parse.find(|c: char| c != ' ') {
                 let line_len = line.len();
                 let tmp = parse[..loc].to_owned();
                 // If the next word can fit on the current line, do so
