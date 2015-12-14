@@ -129,8 +129,6 @@ impl Label {
     /// ```
     ///
     pub fn set_text<S: Into<String>>(&mut self, new_str: S) { 
-        use std::fs::File;
-        use std::io::prelude::*;
         let (framex, _) = self.frame.size();
         self.text = Vec::new();
         let mut parse = new_str.into();
