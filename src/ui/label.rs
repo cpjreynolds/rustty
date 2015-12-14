@@ -90,6 +90,33 @@ impl Label {
         }
     }
 
+    /// Construct a new label widget from an existing string *s*. *s* can either be a
+    /// `&str` or `String` , and a label will be constructed that is the size of the 
+    /// length of characters in *s*. Text is left aligned by default
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::ui::Label;
+    ///
+    /// let mut label1 = Label::from_str("This is a label");    // label is size (15x1)
+    ///
+    /// let s = "Here's another label".to_string();
+    /// let mut label2 = Label::from_str(s);                    // label is size (20x1)
+    /// ```
+    ///
+    pub fn from_str_ref<S: AsRef<str>>(s: S) -> Label {
+        let s = s.as_ref().into();
+        Label {
+            frame: Frame::new(s.len(), 1),
+            text: vec![s.as_ref().into()],
+            x: 0,
+            y: 0,
+            t_halign: HorizontalAlign::Left,
+            t_valign: VerticalAlign::Middle,
+            t_margin: (0, 0),
+        }
+    }
     /// Specify a custom alignment for the text within the widget. Each line
     /// drawn within the label will adhere to the alignments passed for the
     /// text. *note that text alignment is with respect to the *label*
