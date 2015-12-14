@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use core::position::{Size, HasSize};
 use core::cellbuffer::CellAccessor;
 
@@ -105,11 +104,11 @@ impl Label {
     /// let mut label2 = Label::from_str(s);                    // label is size (20x1)
     /// ```
     ///
-    pub fn from_str_ref<S: AsRef<str>>(s: S) -> Label {
-        let s = s.as_ref().into();
+    pub fn from_str_ref(s: &str) -> Label 
+    {
         Label {
             frame: Frame::new(s.len(), 1),
-            text: vec![s.as_ref().into()],
+            text: vec![s.to_string()],
             x: 0,
             y: 0,
             t_halign: HorizontalAlign::Left,
