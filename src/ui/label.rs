@@ -129,10 +129,13 @@ impl Label {
     /// ```
     ///
     pub fn set_text<S: Into<String>>(&mut self, new_str: S) { 
+        use std::fs::File;
+        use std::io::prelude::*;
         let (framex, _) = self.frame.size();
         self.text = Vec::new();
         let mut parse = new_str.into();
         let mut line = String::new();
+
         // This loop below will accomplish splitting a line of text
         // into lines that adhere to the amount of rows in a label
         loop {
@@ -158,6 +161,7 @@ impl Label {
                         line.push_str(&parse);
                         self.text.push(line);
                     } else {
+                        self.text.push(line);
                         self.text.push(parse);
                     }
                 }
@@ -181,8 +185,7 @@ impl Label {
                 // We don't care if there's spaces at the end, so don't check
                 break;
             }
-        
-        } 
+        }
     }
 }
 
