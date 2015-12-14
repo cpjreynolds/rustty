@@ -7,49 +7,62 @@ use rustty::{
     CellAccessor
 };
 
-use rustty::ui::{
-    Painter,
-    Dialog,
+use rustty::ui::core::{
     Widget,
-    Alignable,
     HorizontalAlign,
-    VerticalAlign
+    VerticalAlign,
+    ButtonResult
+};
+
+use rustty::ui::{
+    Dialog,
+    StdButton,
+    Canvas
 };
 
 const BLOCK: char = '\u{25AA}';
 
 fn create_optiondlg() -> Dialog {
     let mut optiondlg = Dialog::new(50, 6);
-    let inc_label = "+ -> Increase Radius";
-    let dec_label = "- -> Decrease Radius";
-    let q_label = "q -> Quit";
-    let inc_pos = optiondlg.window().halign_line(inc_label, HorizontalAlign::Left, 1);
-    let dec_pos = optiondlg.window().halign_line(dec_label, HorizontalAlign::Left, 1);
-    let q_pos = optiondlg.window().halign_line(q_label, HorizontalAlign::Left, 1);
-    optiondlg.window_mut().printline(inc_pos, 1, inc_label);
-    optiondlg.window_mut().printline(dec_pos, 2, dec_label);
-    optiondlg.window_mut().printline(q_pos, 3, q_label);
-    optiondlg.window_mut().draw_box();
+    
+    let mut inc_b = StdButton::new("+ :Increase Radius", '+', ButtonResult::Custom(1));
+    inc_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,1));
+    let mut dec_b = StdButton::new("- :Decrease Radius", '-', ButtonResult::Custom(2));
+    dec_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,2));
+    let mut quit_b = StdButton::new("Quit", 'q', ButtonResult::Ok);
+    quit_b.pack(&optiondlg, HorizontalAlign::Left, VerticalAlign::Top, (1,3));
+    
+    optiondlg.add_button(inc_b);
+    optiondlg.add_button(dec_b);
+    optiondlg.add_button(quit_b);
+
+    optiondlg.draw_box();
     optiondlg
 }
 
 fn main() {
-    // Create our terminal, dialog window and main canvas
+    // Create our terminal, dialog frame and main canvas
     let mut term = Terminal::new().unwrap();
     let mut optiondlg = create_optiondlg();
-    let mut canvas = Widget::new(term.size().0, term.size().1 - 4);
+    let mut canvas = Canvas::new(term.size().0, term.size().1 - 4);
 
     // Align canvas to top left, and dialog to bottom right
-    optiondlg.window_mut().align(&term, HorizontalAlign::Right, VerticalAlign::Bottom, 0);
-    canvas.align(&term, HorizontalAlign::Left, VerticalAlign::Top, 0);
+    optiondlg.pack(&term, HorizontalAlign::Right, VerticalAlign::Bottom, (0,0));
+    canvas.pack(&term, HorizontalAlign::Left, VerticalAlign::Top, (0,0));
     
     let mut radius = 10u32;
     'main: loop {
         while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
-            match ch {
-                'q' => break 'main,
-                '+' => radius = radius.saturating_add(1),
-                '-' => radius = radius.saturating_sub(1),
+            match optiondlg.result_for_key(ch) {
+                Some(ButtonResult::Ok)          => break 'main,
+                Some(ButtonResult::Custom(i))   => {
+                    radius = 
+                        if i == 1 { 
+                            radius.saturating_add(1) 
+                        } else {
+                            radius.saturating_sub(1)
+                        };
+                },
                 _ => {},
             }
         }
@@ -73,9 +86,9 @@ fn main() {
             }
         }
 
-        // draw the canvas, dialog window and swap buffers
-        canvas.draw_into(&mut term);
-        optiondlg.window().draw_into(&mut term);
+        // draw the canvas, dialog frame and swap buffers
+        canvas.draw(&mut term);
+        optiondlg.draw(&mut term);
         term.swap_buffers().unwrap();
     }
 }

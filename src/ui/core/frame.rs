@@ -1,22 +1,32 @@
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
-use ui::layout::{Alignable};
+use ui::core::alignable::{Alignable};
 
-pub struct Widget {
+/// The `Frame` struct is the building block for all future
+/// widgets inside of *ui*. Objects of `Frame` abstract away
+/// the actual creation and drawing of areas of a terminal,
+/// because this process is the same for all widgets. Every
+/// widget should contain one `Frame` type to be used to render
+/// text to the screen
+pub struct Frame {
     origin: Pos,
     size: Size,
     buf: Vec<Cell>,
 }
 
-impl Widget {
-    pub fn new(cols: usize, rows: usize) -> Widget {
-        Widget {
+impl Frame {
+    /// Constructs a new Frame object with a width of `cols`
+    /// and height of `rows`
+    pub fn new(cols: usize, rows: usize) -> Frame {
+        Frame {
             origin: (0, 0),
             size: (cols, rows),
             buf: vec![Cell::default(); cols * rows],
         }
     }
 
+    /// Draw the buffer contained inside of the base object to 
+    /// a valid object that implements CellAccessor.
     pub fn draw_into(&self, cells: &mut CellAccessor) {
         let (cols, rows) = self.size();
         let (x, y) = self.origin();
@@ -31,15 +41,21 @@ impl Widget {
             }
         }
     }
+
+    pub fn resize(&mut self, new_size: Size) {
+        let difference = (new_size.0 * self.size.0) - (new_size.1 * self.size.1);
+        self.buf.extend(vec![Cell::default(); difference]);
+        self.size = new_size;
+    }
 }
 
-impl HasSize for Widget {
+impl HasSize for Frame {
     fn size(&self) -> Size {
         self.size
     }
 }
 
-impl CellAccessor for Widget {
+impl CellAccessor for Frame {
     fn cellvec(&self) -> &Vec<Cell> {
         &self.buf
     }
@@ -50,7 +66,7 @@ impl CellAccessor for Widget {
 
 }
 
-impl HasPosition for Widget {
+impl HasPosition for Frame {
     fn origin(&self) -> Pos {
         self.origin
     }
@@ -60,4 +76,4 @@ impl HasPosition for Widget {
     }
 }
 
-impl Alignable for Widget {}
+impl Alignable for Frame {}

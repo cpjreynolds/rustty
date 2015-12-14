@@ -1,5 +1,5 @@
 use core::cellbuffer::{CellAccessor, Cell};
-use ui::layout::{HorizontalAlign, VerticalAlign};
+use ui::core::attributes::{HorizontalAlign, VerticalAlign};
 
 #[derive(Clone, Copy)]
 pub enum Orientation {
@@ -17,7 +17,7 @@ pub trait Painter: CellAccessor {
     ///
     /// ```
     /// use rustty::{Terminal, Cell, Color, Attr};
-    /// use rustty::ui::Painter;
+    /// use rustty::ui::core::Painter;
     ///
     /// let mut term = Terminal::new().unwrap();
     /// let cell = Cell::with_style(Color::Default, Color::Red, Attr::Default);
@@ -89,6 +89,10 @@ pub trait Painter: CellAccessor {
 
     fn draw_box(&mut self) {
         let (cols, rows) = self.size();
+        if cols <= 1 || rows <= 1 {
+            panic!("draw_box attempted on widget that does not meet \
+                    minimum size requirements. Must be greater than (1x1)");
+        }
         let corners = [
             (0, 0, '┌'),
             (cols-1, 0, '┐'),
