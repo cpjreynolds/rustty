@@ -1,7 +1,6 @@
 use std::os::unix::io::RawFd;
 use std::mem;
 
-use nix;
 use nix::sys::termios;
 use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
 use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB, CS8};
@@ -65,7 +64,7 @@ impl TermCtl {
     pub fn window_size(&self) -> Result<(usize, usize), Error> {
         let mut ws: ffi::winsize = unsafe { mem::uninitialized() };
         try!(unsafe {
-            nix::from_ffi(ffi::ioctl(self.fd, ffi::TIOCGWINSZ, &mut ws))
+            convert_ioctl_res!((ffi::ioctl(self.fd, ffi::TIOCGWINSZ, &mut ws)))
         });
         Ok((ws.ws_col as usize, ws.ws_row as usize))
     }

@@ -13,8 +13,8 @@ use std::collections::VecDeque;
 use std::thread;
 
 use nix::sys::signal;
-use nix::sys::signal::{SockFlag, SigSet};
-use nix::sys::signal::signal::SIGWINCH;
+use nix::sys::signal::{SigHandler, SigAction, SaFlag, SigSet};
+use nix::sys::signal::SIGWINCH;
 use nix::sys::epoll::{epoll_create, epoll_ctl, epoll_wait};
 use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
@@ -143,7 +143,8 @@ impl Terminal {
 
         // Set up the signal handler for SIGWINCH, which will notify us when the window size has
         // changed; it does this by setting SIGWINCH_STATUS to 'true'.
-        let sa_winch = signal::SigAction::new(sigwinch_handler, SockFlag::empty(), SigSet::empty());
+        let handler = SigHandler::Handler(sigwinch_handler);
+        let sa_winch = SigAction::new(handler, SaFlag::empty(), SigSet::empty());
         try!(unsafe {
             signal::sigaction(SIGWINCH, &sa_winch)
         });
