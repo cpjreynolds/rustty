@@ -5,25 +5,7 @@ use std::io::{Error, ErrorKind};
 
 use term::terminfo::TermInfo;
 use term::terminfo::parm;
-use term::terminfo::parm::{
-    Param,
-    Variables,
-};
-
-// String constants correspond to terminfo capnames and are used inside the module for convenience.
-const ENTER_CA: &'static str = "smcup";
-const EXIT_CA: &'static str = "rmcup";
-const SHOW_CURSOR: &'static str = "cnorm";
-const HIDE_CURSOR: &'static str = "civis";
-const SET_CURSOR: &'static str = "cup";
-const CLEAR: &'static str = "clear";
-const RESET: &'static str = "sgr0";
-const UNDERLINE: &'static str = "smul";
-const BOLD: &'static str = "bold";
-const BLINK: &'static str = "blink";
-const REVERSE: &'static str = "rev";
-const SETFG: &'static str = "setaf";
-const SETBG: &'static str = "setab";
+use term::terminfo::parm::{Param, Variables};
 
 // Terminfo keys. These are arrays because the terminfo database from the `term` crate sometimes
 // uses the variable name and othertimes the capname.
@@ -66,6 +48,21 @@ const KEYS: &'static [&'static [&'static str]] = &[
     KEY_RIGHT,
 ];
 
+// String constants correspond to terminfo capnames and are used inside the module for convenience.
+const ENTER_CA: &'static str = "smcup";
+const EXIT_CA: &'static str = "rmcup";
+const SHOW_CURSOR: &'static str = "cnorm";
+const HIDE_CURSOR: &'static str = "civis";
+const SET_CURSOR: &'static str = "cup";
+const CLEAR: &'static str = "clear";
+const RESET: &'static str = "sgr0";
+const UNDERLINE: &'static str = "smul";
+const BOLD: &'static str = "bold";
+const BLINK: &'static str = "blink";
+const REVERSE: &'static str = "rev";
+const SETFG: &'static str = "setaf";
+const SETBG: &'static str = "setab";
+
 // Array of terminal capabilities. Used as an iterator to test for functionality.
 //
 // At the moment all functionality is required, however in the future we should implement optional
@@ -93,7 +90,6 @@ const CAPABILITIES: &'static [&'static str] = &[
 // to take advantage of compile-time type-checking instead of hoping invalid strings aren't passed.
 // This allows us to guarantee that driver accesses will succeed. In addition, using an enum means
 // Driver doesn't need hard-coded methods for each capability we want to use.
-#[allow(dead_code)]
 pub enum DevFn {
     EnterCa,
     ExitCa,
@@ -131,22 +127,7 @@ impl DevFn {
 }
 
 pub struct Driver {
-    tinfo: &'static TermInfo,
-}
-
-// We will never need to mutate the terminfo database, and it is only used internally as a lookup
-// table for the driver. `lazy_static` seems to be the best approach at the moment.
-lazy_static! {
-    static ref TINFO: TermInfo = {
-        TermInfo::from_env().unwrap_or({
-            TermInfo {
-                names: Default::default(),
-                bools: Default::default(),
-                numbers: Default::default(),
-                strings: Default::default(),
-            }
-        })
-    };
+    tinfo: TermInfo,
 }
 
 // Validates and returns a reference to the terminfo database.
@@ -156,8 +137,15 @@ lazy_static! {
 //
 // If this function returns Err(..), the terminfo database did not contain all the required
 // functionality; the error returned will provide more specific detail.
-fn get_tinfo() -> Result<&'static TermInfo, Error> {
-    let tinfo = &*TINFO;
+fn get_tinfo() -> Result<TermInfo, Error> {
+    let tinfo = TermInfo::from_env().unwrap_or({
+        TermInfo {
+            names: Default::default(),
+            bools: Default::default(),
+            numbers: Default::default(),
+            strings: Default::default(),
+        }
+    });
 
     for capname in CAPABILITIES {
         if !tinfo.strings.contains_key(*capname) {
