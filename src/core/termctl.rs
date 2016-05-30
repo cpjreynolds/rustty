@@ -1,3 +1,4 @@
+use std::io::Error;
 use std::os::unix::io::RawFd;
 use std::mem;
 
@@ -7,8 +8,6 @@ use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB
 use nix::sys::termios::{VMIN, VTIME};
 use nix::sys::termios::SetArg;
 use nix::sys::termios::Termios;
-
-use util::errors::Error;
 
 mod ffi {
     use libc;

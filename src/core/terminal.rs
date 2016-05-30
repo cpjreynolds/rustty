@@ -5,6 +5,7 @@ use std::ops::{
     DerefMut,
 };
 use std::io::prelude::*;
+use std::io::{Error, ErrorKind};
 use std::fs::OpenOptions;
 use std::fs::File;
 use std::os::unix::io::{AsRawFd, RawFd};
@@ -20,6 +21,8 @@ use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
 use nix::sys::epoll;
 use nix::errno::Errno;
 
+use gag::BufferRedirect;
+
 use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Color, Attr};
 use core::input::Event;
 use core::position::{Cursor, Pos, Size, HasSize};
@@ -28,8 +31,6 @@ use core::driver::{
     Driver,
 };
 use core::termctl::TermCtl;
-use util::errors::Error;
-use gag::BufferRedirect;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -128,7 +129,7 @@ impl Terminal {
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
-            return Err(Error::new("Rustty already initialized"))
+            return Err(Error::new(ErrorKind::AlreadyExists, "terminal already initialized"))
         }
 
         let driver = try!(Driver::new());
