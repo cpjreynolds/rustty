@@ -7,6 +7,7 @@ use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 use std::thread;
+use std::time::Duration;
 
 use nix::sys::signal;
 use nix::sys::signal::{SigHandler, SigAction, SaFlag, SigSet};
@@ -15,6 +16,8 @@ use nix::sys::select;
 use nix::sys::select::FdSet;
 use nix::sys::time::TimeVal;
 use nix::errno::Errno;
+
+use libc;
 
 use gag::BufferRedirect;
 
@@ -438,10 +441,10 @@ impl Terminal {
         Ok(())
     }
 
-    /// Gets an event from the event stream, waiting a maximum of `timeout_ms` milliseconds.
+    /// Gets an event from the event stream, waiting at most the value specified in `timeout`.
     ///
-    /// Specifying a `timeout_ms` of -1 causes `get_event()` to block indefinitely, while
-    /// specifying a `timeout_ms` of 0 causes `get_event()` to return immediately.
+    /// Specifying a `timeout` of `None` causes `get_event()` to block indefinitely, while
+    /// specifying a `timeout` of zero causes `get_event()` to return immediately.
     ///
     /// Returns `Some(Event)` if an event was received within the specified timeout, or None
     /// otherwise.
@@ -451,16 +454,17 @@ impl Terminal {
     /// ```no_run
     /// # use std::thread::sleep_ms;
     /// use rustty::{Terminal, Event};
+    /// use std::time::Duration;
     ///
     /// let mut term = Terminal::new().unwrap();
     ///
-    /// let evt = term.get_event(1).unwrap();
+    /// let evt = term.get_event(Duration::from_secs(1)).unwrap();
     /// ```
-    pub fn get_event(&mut self, timeout_ms: i64) -> Result<Option<Event>, Error> {
+    pub fn get_event(&mut self, timeout: Duration) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
         if self.eventbuffer.is_empty() {
             // Event buffer is empty, lets poll the terminal for events.
-            let nevts = try!(self.read_events(timeout_ms));
+            let nevts = try!(self.read_events(timeout));
             if nevts == 0 {
                 // No events from the terminal either. Return none.
                 Ok(None)
@@ -552,12 +556,15 @@ impl Terminal {
     }
 
     /// Attempts to read any available events from the terminal into the event buffer, waiting for
-    /// the specified number of milliseconds for input to become available.
+    /// the specified timeout for input to become available.
     ///
     /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, timeout_ms: i64) -> Result<usize, Error> {
+    fn read_events(&mut self, timeout: Duration) -> Result<usize, Error> {
         let nevts;
-        let mut timeout = TimeVal::milliseconds(timeout_ms);
+        let mut timeout = TimeVal {
+            tv_sec: timeout.as_secs() as libc::time_t,
+            tv_usec: timeout.subsec_nanos() as libc::suseconds_t,
+        };
         let rawfd = self.tty.as_raw_fd();
         let nfds = rawfd + 1;
 

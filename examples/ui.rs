@@ -1,17 +1,9 @@
 extern crate rustty;
 
-use rustty::{
-    Terminal,
-    Event,
-};
-use rustty::ui::{
-    Painter,
-    Dialog,
-    DialogResult,
-    Alignable,
-    HorizontalAlign,
-    VerticalAlign,
-};
+use std::time::Duration;
+
+use rustty::{Terminal, Event};
+use rustty::ui::{Painter, Dialog, DialogResult, Alignable, HorizontalAlign, VerticalAlign};
 
 fn create_maindlg() -> Dialog {
     let mut maindlg = Dialog::new(60, 10);
@@ -31,17 +23,21 @@ fn main() {
     let mut maindlg = create_maindlg();
     maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
     'main: loop {
-        while let Some(Event::Key(ch)) = term.get_event(0).unwrap() {
+        while let Some(Event::Key(ch)) = term.get_event(Duration::new(0, 0)).unwrap() {
             match maindlg.result_for_key(ch) {
                 Some(DialogResult::Ok) => break 'main,
                 Some(DialogResult::Custom(i)) => {
-                    let msg = if i == 1 { "Foo!" } else { "Bar!" };
+                    let msg = if i == 1 {
+                        "Foo!"
+                    } else {
+                        "Bar!"
+                    };
                     let w = maindlg.window_mut();
                     let x = w.halign_line(msg, HorizontalAlign::Middle, 1);
                     let y = w.valign_line(msg, VerticalAlign::Middle, 1);
                     w.printline(x, y, msg);
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
 
@@ -49,4 +45,3 @@ fn main() {
         term.swap_buffers().unwrap();
     }
 }
-
