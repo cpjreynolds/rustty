@@ -29,11 +29,15 @@ impl Cursor {
     /// Checks whether the current and last coordinates are sequential and returns `true` if they
     /// are and `false` otherwise.
     pub fn is_seq(&self) -> bool {
-        if let Some((cx, cy)) =  self.pos {
+        if let Some((cx, cy)) = self.pos {
             if let Some((lx, ly)) = self.last_pos {
-                (lx+1, ly) == (cx, cy)
-            } else { false }
-        } else { false }
+                (lx + 1, ly) == (cx, cy)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 
     pub fn pos(&self) -> Option<Pos> {

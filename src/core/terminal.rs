@@ -1,14 +1,9 @@
-use std::ops::{
-    Index,
-    IndexMut,
-    Deref,
-    DerefMut,
-};
+use std::ops::{Index, IndexMut, Deref, DerefMut};
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind};
 use std::fs::OpenOptions;
 use std::fs::File;
-use std::os::unix::io::{AsRawFd, RawFd};
+use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 use std::thread;
@@ -16,9 +11,9 @@ use std::thread;
 use nix::sys::signal;
 use nix::sys::signal::{SigHandler, SigAction, SaFlag, SigSet};
 use nix::sys::signal::SIGWINCH;
-use nix::sys::epoll::{epoll_create, epoll_ctl, epoll_wait};
-use nix::sys::epoll::{EpollOp, EpollEvent, EpollEventKind};
-use nix::sys::epoll;
+use nix::sys::select;
+use nix::sys::select::FdSet;
+use nix::sys::time::TimeVal;
 use nix::errno::Errno;
 
 use gag::BufferRedirect;
@@ -26,10 +21,7 @@ use gag::BufferRedirect;
 use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Color, Attr};
 use core::input::Event;
 use core::position::{Cursor, Pos, Size, HasSize};
-use core::driver::{
-    DevFn,
-    Driver,
-};
+use core::driver::{DevFn, Driver};
 use core::termctl::TermCtl;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
@@ -71,7 +63,6 @@ type EventBuffer = VecDeque<Event>;
 pub struct Terminal {
     termctl: TermCtl,
     tty: File, // Underlying terminal file.
-    epfd: RawFd, // Epoll file descriptor.
     cols: usize, // Number of columns in the terminal window.
     rows: usize, // Number of rows in the terminal window.
     driver: Driver,
@@ -81,7 +72,7 @@ pub struct Terminal {
     eventbuffer: EventBuffer, // Event buffer.
     laststyle: Cell, // Last cell to have its style (fg, bg, attrs) written to the output buffer.
     cursor: Cursor, // Current cursor position.
-    stderr_handle: BufferRedirect
+    stderr_handle: BufferRedirect,
 }
 
 impl Terminal {
@@ -129,7 +120,7 @@ impl Terminal {
     pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
-            return Err(Error::new(ErrorKind::AlreadyExists, "terminal already initialized"))
+            return Err(Error::new(ErrorKind::AlreadyExists, "terminal already initialized"));
         }
 
         let driver = try!(Driver::new());
@@ -146,17 +137,7 @@ impl Terminal {
         // changed; it does this by setting SIGWINCH_STATUS to 'true'.
         let handler = SigHandler::Handler(sigwinch_handler);
         let sa_winch = SigAction::new(handler, SaFlag::empty(), SigSet::empty());
-        try!(unsafe {
-            signal::sigaction(SIGWINCH, &sa_winch)
-        });
-
-        let epfd = try!(epoll_create());
-        let epev = EpollEvent {
-            events: epoll::EPOLLIN,
-            data: 0,
-        };
-        try!(epoll_ctl(epfd, EpollOp::EpollCtlAdd, rawtty, &epev));
-
+        try!(unsafe { signal::sigaction(SIGWINCH, &sa_winch) });
 
         let termctl = try!(TermCtl::new(rawtty));
         try!(termctl.set());
@@ -165,7 +146,6 @@ impl Terminal {
         let mut terminal = Terminal {
             termctl: termctl,
             tty: tty,
-            epfd: epfd,
             cols: 0,
             rows: 0,
             driver: driver,
@@ -175,7 +155,7 @@ impl Terminal {
             eventbuffer: EventBuffer::with_capacity(128),
             laststyle: cell,
             cursor: Cursor::new(),
-            stderr_handle: BufferRedirect::stderr().unwrap()
+            stderr_handle: BufferRedirect::stderr().unwrap(),
         };
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
@@ -476,7 +456,7 @@ impl Terminal {
     ///
     /// let evt = term.get_event(1).unwrap();
     /// ```
-    pub fn get_event(&mut self, timeout_ms: isize) -> Result<Option<Event>, Error> {
+    pub fn get_event(&mut self, timeout_ms: i64) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
         if self.eventbuffer.is_empty() {
             // Event buffer is empty, lets poll the terminal for events.
@@ -519,14 +499,17 @@ impl Terminal {
     }
 
     fn send_style(&mut self, cell: Cell) -> Result<(), Error> {
-        if cell.fg() != self.laststyle.fg() || cell.bg() != self.laststyle.bg() || cell.attrs() != self.laststyle.attrs() {
+        if cell.fg() != self.laststyle.fg() || cell.bg() != self.laststyle.bg() ||
+           cell.attrs() != self.laststyle.attrs() {
             try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
 
             match cell.attrs() {
                 Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold))),
-                Attr::Underline => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline))),
+                Attr::Underline => {
+                    try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline)))
+                }
                 Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
-                _ => {},
+                _ => {}
             }
 
             try!(self.write_sgr(cell.fg(), cell.bg()));
@@ -537,16 +520,16 @@ impl Terminal {
 
     fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), Error> {
         match fgcol {
-            Color::Default => {},
+            Color::Default => {}
             fgc @ _ => {
                 try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetFg(fgc.as_byte()))));
-            },
+            }
         }
         match bgcol {
-            Color::Default => {},
+            Color::Default => {}
             bgc @ _ => {
                 try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetBg(bgc.as_byte()))));
-            },
+            }
         }
         Ok(())
     }
@@ -572,32 +555,36 @@ impl Terminal {
     /// the specified number of milliseconds for input to become available.
     ///
     /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, timeout_ms: isize) -> Result<usize, Error> {
-        // Event vector to pass to kernel.
-        let mut events: Vec<EpollEvent> = Vec::new();
-        events.push(EpollEvent { events: EpollEventKind::empty(), data: 0 });
+    fn read_events(&mut self, timeout_ms: i64) -> Result<usize, Error> {
+        let nevts;
+        let mut timeout = TimeVal::milliseconds(timeout_ms);
+        let rawfd = self.tty.as_raw_fd();
+        let nfds = rawfd + 1;
 
-        let nepolls: usize;
-        // Because the sigwinch handler will interrupt epoll, if epoll returns EINTR we loop
+        let mut fdset_read = FdSet::new();
+        fdset_read.insert(rawfd);
+
+        // Because the sigwinch handler will interrupt select, if select returns EINTR we loop
         // and try again. All other errors will return normally.
         loop {
-            nepolls = match epoll_wait(self.epfd, &mut events, timeout_ms) {
-                Ok(n) => n,
-                Err(e) if e.errno() == Errno::EINTR => {
-                    // Errno is EINTR, loop and try again.
-                    continue;
-                },
-                Err(e) => {
-                    // Error that isn't EINTR, return up the stack.
-                    return Err(Error::from(e));
-                },
-            };
-            // We will only reach this point if epoll_wait succeeds, therefore we have assigned
+            nevts =
+                match select::select(nfds, Some(&mut fdset_read), None, None, Some(&mut timeout)) {
+                    Ok(n) => n,
+                    Err(e) if e.errno() == Errno::EINTR => {
+                        // Errno is EINTR, loop and try again.
+                        continue;
+                    }
+                    Err(e) => {
+                        // Error that isn't EINTR, return up the stack.
+                        return Err(Error::from(e));
+                    }
+                };
+            // We will only reach this point if select succeeds, therefore we have assigned
             // to nevents and can break.
             break;
         }
 
-        if nepolls == 0 {
+        if nevts == 0 {
             // No input available. Return None.
             Ok(0)
         } else {
@@ -696,7 +683,6 @@ impl Drop for Terminal {
 }
 
 // Sigwinch handler to notify when window has resized.
-extern fn sigwinch_handler(_: i32) {
+extern "C" fn sigwinch_handler(_: i32) {
     SIGWINCH_STATUS.store(true, Ordering::SeqCst);
 }
-

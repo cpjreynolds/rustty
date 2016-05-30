@@ -29,24 +29,9 @@ const KEY_LEFT: &'static [&'static str] = &["key_left", "kcub1"];
 const KEY_RIGHT: &'static [&'static str] = &["key_right", "kcuf1"];
 
 // Array of terminal keys.
-const KEYS: &'static [&'static [&'static str]] = &[
-    KEY_F1,
-    KEY_F2,
-    KEY_F3,
-    KEY_F4,
-    KEY_F5,
-    KEY_F6,
-    KEY_F7,
-    KEY_F8,
-    KEY_F9,
-    KEY_F10,
-    KEY_F11,
-    KEY_F12,
-    KEY_UP,
-    KEY_DOWN,
-    KEY_LEFT,
-    KEY_RIGHT,
-];
+const KEYS: &'static [&'static [&'static str]] = &[KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6,
+                                                   KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11,
+                                                   KEY_F12, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT];
 
 // String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
@@ -70,20 +55,18 @@ const SETBG: &'static str = "setab";
 // to fail.
 //
 // TODO: Optional functionality testing.
-const CAPABILITIES: &'static [&'static str] = &[
-    ENTER_CA,
-    EXIT_CA,
-    SHOW_CURSOR,
-    HIDE_CURSOR,
-    SET_CURSOR,
-    CLEAR,
-    RESET,
-    UNDERLINE,
-    BOLD,
-    REVERSE,
-    SETFG,
-    SETBG,
-];
+const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
+                                                EXIT_CA,
+                                                SHOW_CURSOR,
+                                                HIDE_CURSOR,
+                                                SET_CURSOR,
+                                                CLEAR,
+                                                RESET,
+                                                UNDERLINE,
+                                                BOLD,
+                                                REVERSE,
+                                                SETFG,
+                                                SETBG];
 
 // Driver capabilities are an enum instead of string constants (there are string constants private
 // to the module however, those are only used for naming convenience and disambiguation)
@@ -162,9 +145,7 @@ impl Driver {
     // If successful, the terminfo database is guaranteed to contain all capabilities we support.
     pub fn new() -> Result<Driver, Error> {
         let tinfo = try!(get_tinfo());
-        Ok(Driver {
-            tinfo: tinfo,
-        })
+        Ok(Driver { tinfo: tinfo })
     }
 
     // Returns the device specific escape sequence for the given `DevFn`.
@@ -181,20 +162,18 @@ impl Driver {
         let cap = self.tinfo.strings.get(capname).unwrap();
 
         match dfn {
-            DevFn::SetFg(attr) | DevFn::SetBg(attr) => {
+            DevFn::SetFg(attr) |
+            DevFn::SetBg(attr) => {
                 let params = &[Param::Number(attr as i32)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
-            },
+            }
             DevFn::SetCursor(x, y) => {
                 let params = &[Param::Number(y as i32), Param::Number(x as i32)];
                 let mut vars = Variables::new();
                 parm::expand(cap, params, &mut vars).unwrap()
-            },
-            _ => {
-                cap.clone()
-            },
+            }
+            _ => cap.clone(),
         }
     }
 }
-

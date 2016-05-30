@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use ui::layout::{Alignable, HorizontalLayout, HorizontalAlign, VerticalAlign};
 use ui::widget::Widget;
-use ui::button::{create_button};
+use ui::button::create_button;
 
 #[derive(Clone, Copy)]
 pub enum DialogResult {
@@ -49,11 +49,16 @@ impl Dialog {
     }
 
     pub fn draw_buttons(&mut self) {
-        fn f(b: &mut Widget) -> &mut Alignable { &mut *b }
+        fn f(b: &mut Widget) -> &mut Alignable {
+            &mut *b
+        }
         {
             let elems = self.buttons.iter_mut().map(f).collect();
             let mut l = HorizontalLayout::new(elems, 2);
-            l.align(&self.window, HorizontalAlign::Middle, VerticalAlign::Bottom, 1);
+            l.align(&self.window,
+                    HorizontalAlign::Middle,
+                    VerticalAlign::Bottom,
+                    1);
             l.align_elems();
         }
         for b in self.buttons.iter() {
