@@ -20,7 +20,6 @@ extern crate gag;
 #[macro_use] extern crate lazy_static;
 
 mod core;
-mod util;
 pub mod ui;
 
 pub use core::terminal::Terminal;
@@ -32,5 +31,4 @@ pub use core::cellbuffer::{
 };
 pub use core::position::{Pos, Size, HasSize, HasPosition};
 pub use core::input::Event;
-pub use util::errors::Error;
 

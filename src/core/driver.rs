@@ -1,9 +1,7 @@
+// Temporary fix before certain constants are used.
 #![allow(dead_code)]
 
-use util::errors::{
-    Result,
-    Error,
-};
+use std::io::{Error, ErrorKind};
 
 use term::terminfo::TermInfo;
 use term::terminfo::parm;
@@ -158,12 +156,13 @@ lazy_static! {
 //
 // If this function returns Err(..), the terminfo database did not contain all the required
 // functionality; the error returned will provide more specific detail.
-fn get_tinfo() -> Result<&'static TermInfo> {
+fn get_tinfo() -> Result<&'static TermInfo, Error> {
     let tinfo = &*TINFO;
 
     for capname in CAPABILITIES {
         if !tinfo.strings.contains_key(*capname) {
-            return Err(Error::new(format!("terminal missing capability: '{}'", capname)));
+            return Err(Error::new(ErrorKind::NotFound,
+                                  format!("terminal missing capability: '{}'", capname)));
         }
     }
     Ok(tinfo)
@@ -173,7 +172,7 @@ impl Driver {
     // Creates a new `Driver`
     //
     // If successful, the terminfo database is guaranteed to contain all capabilities we support.
-    pub fn new() -> Result<Driver> {
+    pub fn new() -> Result<Driver, Error> {
         let tinfo = try!(get_tinfo());
         Ok(Driver {
             tinfo: tinfo,
