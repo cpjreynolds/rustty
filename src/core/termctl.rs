@@ -26,7 +26,7 @@ mod ffi {
         ws_ypixel: u16,
     }
 
-    extern {
+    extern "C" {
         pub fn ioctl(fd: libc::c_int, req: libc::c_ulong, ...) -> libc::c_int;
     }
 }
@@ -47,8 +47,8 @@ impl TermCtl {
 
     pub fn set(&self) -> Result<(), Error> {
         let mut tios = self.orig_tios.clone();
-        tios.c_iflag = tios.c_iflag & !(IGNBRK | BRKINT | PARMRK | ISTRIP |
-                                        INLCR | IGNCR | ICRNL | IXON);
+        tios.c_iflag = tios.c_iflag &
+                       !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
         tios.c_oflag = tios.c_oflag & !OPOST;
         tios.c_lflag = tios.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
         tios.c_cflag = tios.c_cflag & !(CSIZE | PARENB);
@@ -62,9 +62,7 @@ impl TermCtl {
 
     pub fn window_size(&self) -> Result<(usize, usize), Error> {
         let mut ws: ffi::winsize = unsafe { mem::uninitialized() };
-        try!(unsafe {
-            convert_ioctl_res!((ffi::ioctl(self.fd, ffi::TIOCGWINSZ, &mut ws)))
-        });
+        try!(unsafe { convert_ioctl_res!((ffi::ioctl(self.fd, ffi::TIOCGWINSZ, &mut ws))) });
         Ok((ws.ws_col as usize, ws.ws_row as usize))
     }
 

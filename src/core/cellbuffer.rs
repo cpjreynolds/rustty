@@ -1,16 +1,11 @@
-use std::ops::{
-    Index,
-    IndexMut,
-    Deref,
-    DerefMut,
-};
+use std::ops::{Index, IndexMut, Deref, DerefMut};
 
 use core::position::{Pos, Size, HasSize};
 
 // I tried really hard to implement Index + IndexMut directly in the trait, but I coudn't get it
 // to compile...
 
-pub trait CellAccessor : HasSize {
+pub trait CellAccessor: HasSize {
     fn cellvec(&self) -> &Vec<Cell>;
     fn cellvec_mut(&mut self) -> &mut Vec<Cell>;
 
@@ -67,7 +62,6 @@ pub trait CellAccessor : HasSize {
             None => None,
         }
     }
-
 }
 
 /// An array of `Cell`s that represents a terminal display.
@@ -402,16 +396,16 @@ impl Color {
     /// Returns the `u8` representation of the `Color`.
     pub fn as_byte(&self) -> u8 {
         match *self {
-            Color::Black => { 0x00 },
-            Color::Red => { 0x01 },
-            Color::Green => { 0x02 },
-            Color::Yellow => { 0x03 },
-            Color::Blue => { 0x04 },
-            Color::Magenta => { 0x05 },
-            Color::Cyan => { 0x06 },
-            Color::White => { 0x07 },
-            Color::Byte(b) => { b },
-            Color::Default => { panic!("Attempted to cast default color to u8") },
+            Color::Black => 0x00,
+            Color::Red => 0x01,
+            Color::Green => 0x02,
+            Color::Yellow => 0x03,
+            Color::Blue => 0x04,
+            Color::Magenta => 0x05,
+            Color::Cyan => 0x06,
+            Color::White => 0x07,
+            Color::Byte(b) => b,
+            Color::Default => panic!("Attempted to cast default color to u8"),
         }
     }
 }
@@ -447,4 +441,3 @@ pub enum Attr {
     UnderlineReverse = 0b110,
     BoldReverseUnderline = 0b111,
 }
-

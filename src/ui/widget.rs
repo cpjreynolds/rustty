@@ -1,6 +1,6 @@
 use core::position::{Pos, Size, HasSize, HasPosition};
 use core::cellbuffer::{CellAccessor, Cell};
-use ui::layout::{Alignable};
+use ui::layout::Alignable;
 
 pub struct Widget {
     origin: Pos,
@@ -25,7 +25,9 @@ impl Widget {
             for iy in 0..rows {
                 let offset_y = y + iy;
                 match cells.get_mut(offset_x, offset_y) {
-                    Some(cell) => { *cell = *self.get(ix, iy).unwrap(); },
+                    Some(cell) => {
+                        *cell = *self.get(ix, iy).unwrap();
+                    }
                     None => (),
                 }
             }
@@ -47,7 +49,6 @@ impl CellAccessor for Widget {
     fn cellvec_mut(&mut self) -> &mut Vec<Cell> {
         &mut self.buf
     }
-
 }
 
 impl HasPosition for Widget {

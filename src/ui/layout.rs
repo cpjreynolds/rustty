@@ -37,7 +37,11 @@ pub trait Alignable: HasSize + HasPosition {
         self.set_origin((x, newy));
     }
 
-    fn align(&mut self, parent: &HasSize, halign: HorizontalAlign, valign: VerticalAlign, margin: usize) {
+    fn align(&mut self,
+             parent: &HasSize,
+             halign: HorizontalAlign,
+             valign: VerticalAlign,
+             margin: usize) {
         self.halign(parent, halign, margin);
         self.valign(parent, valign, margin);
     }
@@ -90,4 +94,3 @@ impl<'a> HasPosition for HorizontalLayout<'a> {
 }
 
 impl<'a> Alignable for HorizontalLayout<'a> {}
-
