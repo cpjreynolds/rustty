@@ -1,10 +1,8 @@
 extern crate rustty;
 
-use rustty::{
-    Terminal,
-    Event,
-    Color,
-};
+use std::time::Duration;
+
+use rustty::{Terminal, Event, Color};
 
 struct Cursor {
     pos: Position,
@@ -28,12 +26,12 @@ fn main() {
     term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.color);
     term.swap_buffers().unwrap();
     loop {
-        let evt = term.get_event(100).unwrap();
+        let evt = term.get_event(Duration::from_millis(100)).unwrap();
         if let Some(Event::Key(ch)) = evt {
             match ch {
                 '`' => {
                     break;
-                },
+                }
                 '\x7f' => {
                     cursor.lpos = cursor.pos;
                     if cursor.pos.x == 0 {
@@ -42,25 +40,25 @@ fn main() {
                         cursor.pos.x -= 1;
                     }
                     term[(cursor.pos.x, cursor.pos.y)].set_ch(' ');
-                },
+                }
                 '\r' => {
                     cursor.lpos = cursor.pos;
                     cursor.pos.x = 0;
                     cursor.pos.y += 1;
-                },
+                }
                 c @ _ => {
                     term[(cursor.pos.x, cursor.pos.y)].set_ch(c);
                     cursor.lpos = cursor.pos;
                     cursor.pos.x += 1;
-                },
+                }
             }
-            if cursor.pos.x >= term.cols()-1 {
+            if cursor.pos.x >= term.cols() - 1 {
                 term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Color::Default);
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
                 cursor.pos.y += 1;
             }
-            if cursor.pos.y >= term.rows()-1 {
+            if cursor.pos.y >= term.rows() - 1 {
                 term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Color::Default);
                 cursor.lpos = cursor.pos;
                 cursor.pos.x = 0;
@@ -72,4 +70,3 @@ fn main() {
         }
     }
 }
-
