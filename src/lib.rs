@@ -14,8 +14,6 @@
 //! [README](https://github.com/cpjreynolds/rustty/blob/master/README.md)
 
 extern crate term;
-#[macro_use]
-extern crate nix;
 extern crate libc;
 extern crate gag;
 

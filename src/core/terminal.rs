@@ -8,14 +8,8 @@ use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
-
-use nix::sys::signal;
-use nix::sys::signal::{SigHandler, SigAction, SaFlag, SigSet};
-use nix::sys::signal::SIGWINCH;
-use nix::sys::select;
-use nix::sys::select::FdSet;
-use nix::sys::time::TimeVal;
-use nix::errno::Errno;
+use std::ptr;
+use std::mem;
 
 use libc;
 
@@ -64,11 +58,11 @@ type EventBuffer = VecDeque<Event>;
 /// assert_eq!(term[(0, 2)].fg(), Color::Blue);
 /// ```
 pub struct Terminal {
-    termctl: TermCtl,
+    termctl: TermCtl, // Terminal controller (termios).
     tty: File, // Underlying terminal file.
     cols: usize, // Number of columns in the terminal window.
     rows: usize, // Number of rows in the terminal window.
-    driver: Driver,
+    driver: Driver, // Terminal driver (terminfo).
     backbuffer: CellBuffer, // Internal backbuffer.
     frontbuffer: CellBuffer, // Internal frontbuffer.
     outbuffer: OutBuffer, // Internal output buffer.
@@ -138,9 +132,13 @@ impl Terminal {
 
         // Set up the signal handler for SIGWINCH, which will notify us when the window size has
         // changed; it does this by setting SIGWINCH_STATUS to 'true'.
-        let handler = SigHandler::Handler(sigwinch_handler);
-        let sa_winch = SigAction::new(handler, SaFlag::empty(), SigSet::empty());
-        try!(unsafe { signal::sigaction(SIGWINCH, &sa_winch) });
+        let handler = sigwinch_handler as libc::size_t;
+        let mut sa_winch: libc::sigaction = unsafe { mem::zeroed() };
+        sa_winch.sa_sigaction = handler;
+        let res = unsafe { libc::sigaction(libc::SIGWINCH, &sa_winch, ptr::null_mut()) };
+        if res != 0 {
+            return Err(Error::last_os_error());
+        }
 
         let termctl = try!(TermCtl::new(rawtty));
         try!(termctl.set());
@@ -561,34 +559,43 @@ impl Terminal {
     /// Returns the number of events read into the buffer.
     fn read_events(&mut self, timeout: Duration) -> Result<usize, Error> {
         let nevts;
-        let mut timeout = TimeVal {
+        let mut timeout = libc::timeval {
             tv_sec: timeout.as_secs() as libc::time_t,
-            tv_usec: timeout.subsec_nanos() as libc::suseconds_t,
+            tv_usec: (timeout.subsec_nanos() as libc::suseconds_t) / 1000,
         };
         let rawfd = self.tty.as_raw_fd();
         let nfds = rawfd + 1;
 
-        let mut fdset_read = FdSet::new();
-        fdset_read.insert(rawfd);
+        let mut rfds: libc::fd_set = unsafe { mem::zeroed() };
+        unsafe {
+            libc::FD_SET(rawfd, &mut rfds);
+        }
 
         // Because the sigwinch handler will interrupt select, if select returns EINTR we loop
         // and try again. All other errors will return normally.
         loop {
-            nevts =
-                match select::select(nfds, Some(&mut fdset_read), None, None, Some(&mut timeout)) {
-                    Ok(n) => n,
-                    Err(e) if e.errno() == Errno::EINTR => {
-                        // Errno is EINTR, loop and try again.
-                        continue;
-                    }
-                    Err(e) => {
-                        // Error that isn't EINTR, return up the stack.
-                        return Err(Error::from(e));
-                    }
-                };
-            // We will only reach this point if select succeeds, therefore we have assigned
-            // to nevents and can break.
-            break;
+            let res = unsafe {
+                libc::select(nfds,
+                             &mut rfds,
+                             ptr::null_mut(),
+                             ptr::null_mut(),
+                             &mut timeout)
+            };
+
+            if res == -1 {
+                let err = Error::last_os_error();
+
+                if err.kind() == ErrorKind::Interrupted {
+                    // Errno is EINTR, loop and try again.
+                    continue;
+                } else {
+                    // Error other than EINTR, return to caller.
+                    return Err(err);
+                }
+            } else {
+                nevts = res;
+                break;
+            }
         }
 
         if nevts == 0 {
