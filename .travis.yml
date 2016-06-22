@@ -1,17 +1,12 @@
 language: rust
 
+rust:
+    - nightly
+    - stable
+
 os:
     - linux
     - osx
-
-rust:
-    - nightly
-    - beta
-    - stable
-
-cache:
-    directories:
-        - target
 
 script:
     - cargo build
@@ -22,4 +17,5 @@ after_success:
     test $TRAVIS_PULL_REQUEST == "false" &&
     test $TRAVIS_BRANCH == "master" &&
     test $TRAVIS_RUST_VERSION == "stable" &&
+    test $TRAVIS_OS_NAME == "linux" &&
     sh etc/deploy-docs.sh
