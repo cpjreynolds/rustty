@@ -2,72 +2,67 @@ use std::io::Error;
 use std::os::unix::io::RawFd;
 use std::mem;
 
-use nix::sys::termios;
-use nix::sys::termios::{IGNBRK, BRKINT, PARMRK, ISTRIP, INLCR, IGNCR, ICRNL, IXON};
-use nix::sys::termios::{OPOST, ECHO, ECHONL, ICANON, ISIG, IEXTEN, CSIZE, PARENB, CS8};
-use nix::sys::termios::{VMIN, VTIME};
-use nix::sys::termios::SetArg;
-use nix::sys::termios::Termios;
-
-mod ffi {
-    use libc;
-
-    #[cfg(target_os = "macos")]
-    pub const TIOCGWINSZ: libc::c_ulong = 0x40087468;
-    #[cfg(target_os = "linux")]
-    pub const TIOCGWINSZ: libc::c_ulong = 0x00005413;
-
-    #[repr(C)]
-    #[derive(Debug, Clone)]
-    pub struct winsize {
-        pub ws_row: u16,
-        pub ws_col: u16,
-        ws_xpixel: u16,
-        ws_ypixel: u16,
-    }
-
-    extern "C" {
-        pub fn ioctl(fd: libc::c_int, req: libc::c_ulong, ...) -> libc::c_int;
-    }
-}
+use libc;
 
 /// Controller for low-level interaction with a terminal device.
 pub struct TermCtl {
     fd: RawFd,
-    orig_tios: Termios,
+    orig_tios: libc::termios,
 }
 
 impl TermCtl {
     pub fn new(fd: RawFd) -> Result<TermCtl, Error> {
-        Ok(TermCtl {
-            fd: fd,
-            orig_tios: try!(termios::tcgetattr(fd)),
-        })
+        let mut termios = unsafe { mem::uninitialized() };
+
+        let res = unsafe { libc::tcgetattr(fd, &mut termios) };
+
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(TermCtl {
+                fd: fd,
+                orig_tios: termios,
+            })
+        }
     }
 
     pub fn set(&self) -> Result<(), Error> {
         let mut tios = self.orig_tios.clone();
-        tios.c_iflag = tios.c_iflag &
-                       !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-        tios.c_oflag = tios.c_oflag & !OPOST;
-        tios.c_lflag = tios.c_lflag & !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-        tios.c_cflag = tios.c_cflag & !(CSIZE | PARENB);
-        tios.c_cflag = tios.c_cflag | CS8;
-        tios.c_cc[VMIN] = 0;
-        tios.c_cc[VTIME] = 0;
+        tios.c_iflag &= !(libc::IGNBRK | libc::BRKINT | libc::PARMRK | libc::ISTRIP |
+                          libc::INLCR | libc::IGNCR | libc::ICRNL |
+                          libc::IXON);
+        tios.c_oflag &= !libc::OPOST;
+        tios.c_lflag &= !(libc::ECHO | libc::ECHONL | libc::ICANON | libc::ISIG | libc::IEXTEN);
+        tios.c_cflag &= !(libc::CSIZE | libc::PARENB);
+        tios.c_cflag |= libc::CS8;
+        tios.c_cc[libc::VMIN] = 0;
+        tios.c_cc[libc::VTIME] = 0;
 
-        try!(termios::tcsetattr(self.fd, SetArg::TCSAFLUSH, &tios));
-        Ok(())
+        let res = unsafe { libc::tcsetattr(self.fd, libc::TCSAFLUSH, &tios) };
+
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(())
+        }
     }
 
     pub fn window_size(&self) -> Result<(usize, usize), Error> {
-        let mut ws: ffi::winsize = unsafe { mem::uninitialized() };
-        try!(unsafe { convert_ioctl_res!((ffi::ioctl(self.fd, ffi::TIOCGWINSZ, &mut ws))) });
-        Ok((ws.ws_col as usize, ws.ws_row as usize))
+        let mut ws: libc::winsize = unsafe { mem::uninitialized() };
+        let res = unsafe { libc::ioctl(self.fd, libc::TIOCGWINSZ, &mut ws) };
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok((ws.ws_col as usize, ws.ws_row as usize))
+        }
     }
 
     pub fn reset(&self) -> Result<(), Error> {
-        try!(termios::tcsetattr(self.fd, SetArg::TCSAFLUSH, &self.orig_tios));
-        Ok(())
+        let res = unsafe { libc::tcsetattr(self.fd, libc::TCSAFLUSH, &self.orig_tios) };
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(())
+        }
     }
 }
