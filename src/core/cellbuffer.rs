@@ -1,4 +1,5 @@
 use std::ops::{Index, IndexMut, Deref, DerefMut};
+use std::cmp;
 
 use core::position::{Pos, Size, HasSize};
 
@@ -91,18 +92,32 @@ impl CellBuffer {
 
     /// Resizes `CellBuffer` to the given number of rows and columns, using the given `Cell` as
     /// a blank.
+    // TODO: test this.
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        let newlen = newcols * newrows;
-        let mut newbuf: Vec<Cell> = Vec::with_capacity(newlen);
-        for y in 0..newrows {
-            for x in 0..newcols {
-                let cell = self.get(x, y).unwrap_or(&blank);
-                newbuf.push(*cell);
-            }
+        let mut newbuf: Vec<Cell> = Vec::with_capacity(newcols * newrows);
+
+        let oldrows = self.rows;
+        let oldcols = self.cols;
+        let minrows = cmp::min(oldrows, newrows);
+        let mincols = cmp::min(oldcols, newcols);
+        let x_ext_len = newcols.saturating_sub(oldcols);
+        let y_ext_len = newrows.saturating_sub(oldrows) * newcols;
+
+        for y in 0..minrows {
+            let copy_start = oldcols * y;
+            let copy_end = (oldcols * y) + mincols;
+
+            newbuf.extend_from_slice(&self.buf[copy_start..copy_end]);
+            let curlen = newbuf.len();
+            newbuf.resize(curlen + x_ext_len, blank);
         }
-        self.buf = newbuf;
+
+        let curlen = newbuf.len();
+        newbuf.resize(curlen + y_ext_len, blank);
+
         self.cols = newcols;
         self.rows = newrows;
+        self.buf = newbuf;
     }
 }
 
