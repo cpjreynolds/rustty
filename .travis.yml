@@ -5,17 +5,18 @@ rust:
     - beta
     - stable
 
-cache:
-    directories:
-        - target
+os:
+    - linux
+    - osx
 
 script:
-    - cargo build --verbose
-    - cargo test --verbose
+    - cargo build
+    - cargo test
     - cargo doc
 
 after_success:
     test $TRAVIS_PULL_REQUEST == "false" &&
     test $TRAVIS_BRANCH == "master" &&
     test $TRAVIS_RUST_VERSION == "stable" &&
+    test $TRAVIS_OS_NAME == "linux" &&
     sh etc/deploy-docs.sh
