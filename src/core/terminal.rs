@@ -330,6 +330,7 @@ impl Terminal {
         }
     }
 
+    // Sends the cursor to the specified position.
     fn send_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(x, y))));
         Ok(())
@@ -352,6 +353,7 @@ impl Terminal {
         Ok(())
     }
 
+    // Sends the style of the specified cell.
     fn send_style(&mut self, cell: Cell) -> Result<(), Error> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
 
@@ -366,6 +368,7 @@ impl Terminal {
         Ok(())
     }
 
+    // Writes colors to the outbuffer.
     fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), Error> {
         match fgcol {
             Color::Default => {}
@@ -503,7 +506,7 @@ impl Terminal {
         }
     }
 
-    pub fn reset_termios(&self) -> Result<(), Error> {
+    fn reset_termios(&self) -> Result<(), Error> {
         let fd = self.tty.as_raw_fd();
         let res = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &self.orig_tios) };
         if res != 0 {
