@@ -18,7 +18,6 @@ use gag::BufferRedirect;
 use core::cellbuffer::{CellBuffer, Cell, Color, Attr};
 use core::input::Event;
 use core::driver::{DevFn, Driver};
-use core::termctl::TermCtl;
 
 /// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -57,8 +56,6 @@ type EventBuffer = VecDeque<Event>;
 /// assert_eq!(term[(0, 2)].fg(), Color::Blue);
 /// ```
 pub struct Terminal {
-    // Terminal controller (termios).
-    termctl: TermCtl,
     // Underlying terminal file.
     tty: File,
     // Number of columns in the terminal window.
@@ -77,6 +74,8 @@ pub struct Terminal {
     eventbuffer: EventBuffer,
     // Stderr handle to dump on panics.
     stderr_handle: BufferRedirect,
+    // Original termios structure.
+    orig_tios: libc::termios,
 }
 
 impl Terminal {
@@ -105,9 +104,6 @@ impl Terminal {
             .read(true)
             .open("/dev/tty"));
 
-        // TODO: Avoid use of the raw fd.
-        let rawtty = tty.as_raw_fd();
-
         // Set up the signal handler for SIGWINCH, which will notify us when the window size has
         // changed; it does this by atomically setting SIGWINCH_STATUS to 'true'.
         let handler = sigwinch_handler as libc::size_t;
@@ -118,12 +114,14 @@ impl Terminal {
             return Err(Error::last_os_error());
         }
 
-        // Create the terminal controller and set required options.
-        let termctl = try!(TermCtl::new(rawtty));
-        try!(termctl.set());
+        // Create and initialize the original termios struct, so we can reset it on drop.
+        let mut orig_tios = unsafe { mem::uninitialized() };
+        let res = unsafe { libc::tcgetattr(tty.as_raw_fd(), &mut orig_tios) };
+        if res != 0 {
+            return Err(Error::last_os_error());
+        }
 
         let mut terminal = Terminal {
-            termctl: termctl,
             tty: tty,
             cols: 0,
             rows: 0,
@@ -133,7 +131,11 @@ impl Terminal {
             outbuffer: OutBuffer::with_capacity(32 * 1024),
             eventbuffer: EventBuffer::with_capacity(128),
             stderr_handle: BufferRedirect::stderr().unwrap(),
+            orig_tios: orig_tios,
         };
+
+        // Set the termios options we need.
+        try!(terminal.set_termios());
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
         try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::EnterCa)));
@@ -382,7 +384,7 @@ impl Terminal {
 
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
     fn resize(&mut self) -> Result<(), Error> {
-        let (cols, rows) = try!(self.termctl.window_size());
+        let (cols, rows) = try!(self.window_size());
         self.cols = cols;
         self.rows = rows;
         self.backbuffer.resize(self.cols, self.rows, Cell::default());
@@ -465,6 +467,51 @@ impl Terminal {
         }
         Ok(())
     }
+
+    fn set_termios(&self) -> Result<(), Error> {
+        let fd = self.tty.as_raw_fd();
+        let mut tios = self.orig_tios.clone();
+
+        tios.c_iflag &= !(libc::IGNBRK | libc::BRKINT | libc::PARMRK | libc::ISTRIP |
+                          libc::INLCR | libc::IGNCR | libc::ICRNL |
+                          libc::IXON);
+        tios.c_oflag &= !libc::OPOST;
+        tios.c_lflag &= !(libc::ECHO | libc::ECHONL | libc::ICANON | libc::ISIG | libc::IEXTEN);
+        tios.c_cflag &= !(libc::CSIZE | libc::PARENB);
+        tios.c_cflag |= libc::CS8;
+        tios.c_cc[libc::VMIN] = 0;
+        tios.c_cc[libc::VTIME] = 0;
+
+        let res = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &tios) };
+
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn window_size(&self) -> Result<(usize, usize), Error> {
+        let fd = self.tty.as_raw_fd();
+        let mut ws: libc::winsize = unsafe { mem::uninitialized() };
+
+        let res = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok((ws.ws_col as usize, ws.ws_row as usize))
+        }
+    }
+
+    pub fn reset_termios(&self) -> Result<(), Error> {
+        let fd = self.tty.as_raw_fd();
+        let res = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &self.orig_tios) };
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 impl Deref for Terminal {
@@ -502,7 +549,7 @@ impl Drop for Terminal {
         self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
         self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
         self.flush().unwrap();
-        self.termctl.reset().unwrap();
+        self.reset_termios().unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
     }
