@@ -1,70 +1,6 @@
 use std::ops::{Index, IndexMut, Deref, DerefMut};
 use std::cmp;
 
-use core::position::{Pos, Size, HasSize};
-
-// I tried really hard to implement Index + IndexMut directly in the trait, but I coudn't get it
-// to compile...
-
-pub trait CellAccessor: HasSize {
-    fn cellvec(&self) -> &Vec<Cell>;
-    fn cellvec_mut(&mut self) -> &mut Vec<Cell>;
-
-    /// Clears `self`, using the given `Cell` as a blank.
-    fn clear(&mut self, blank: Cell) {
-        for cell in self.cellvec_mut().iter_mut() {
-            *cell = blank;
-        }
-    }
-
-    fn pos_to_index(&self, x: usize, y: usize) -> Option<usize> {
-        let (cols, rows) = self.size();
-        if x < cols && y < rows {
-            Some((cols * y) + x)
-        } else {
-            None
-        }
-    }
-
-    /// Returns a reference to the `Cell` at the given coordinates, or `None` if the index is out of
-    /// bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, CellAccessor};
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// let a_cell = term.get(5, 5);
-    /// ```
-    fn get(&self, x: usize, y: usize) -> Option<&Cell> {
-        match self.pos_to_index(x, y) {
-            Some(i) => self.cellvec().get(i),
-            None => None,
-        }
-    }
-
-    /// Returns a mutable reference to the `Cell` at the given coordinates, or `None` if the index
-    /// is out of bounds.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, CellAccessor};
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// let a_mut_cell = term.get_mut(5, 5);
-    /// ```
-    fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut Cell> {
-        match self.pos_to_index(x, y) {
-            Some(i) => self.cellvec_mut().get_mut(i),
-            None => None,
-        }
-    }
-}
-
 /// An array of `Cell`s that represents a terminal display.
 ///
 /// A `CellBuffer` is a two-dimensional array of `Cell`s, each pair of indices correspond to a
@@ -80,13 +16,39 @@ pub struct CellBuffer {
 }
 
 impl CellBuffer {
-    /// Constructs a new `CellBuffer` with the given number of columns and rows, using the given
-    /// `cell` as a blank.
-    pub fn new(cols: usize, rows: usize, cell: Cell) -> CellBuffer {
+    /// Constructs a new `CellBuffer` with the given number of columns and rows.
+    pub fn new(cols: usize, rows: usize) -> CellBuffer {
+        let len = cols * rows;
+        let mut buf = Vec::with_capacity(len);
+        buf.resize(len, Cell::default());
         CellBuffer {
             cols: cols,
             rows: rows,
-            buf: vec![cell; cols * rows],
+            buf: buf,
+        }
+    }
+
+    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
+        if x < self.cols && y < self.rows {
+            let offset = (self.cols * y) + x;
+            self.buf.get(offset)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
+        if x < self.cols && y < self.rows {
+            let offset = (self.cols * y) + x;
+            self.buf.get_mut(offset)
+        } else {
+            None
+        }
+    }
+
+    pub fn clear(&mut self, blank: Cell) {
+        for cell in &mut self.buf {
+            *cell = blank;
         }
     }
 
@@ -121,22 +83,6 @@ impl CellBuffer {
     }
 }
 
-impl HasSize for CellBuffer {
-    fn size(&self) -> Size {
-        (self.cols, self.rows)
-    }
-}
-
-impl CellAccessor for CellBuffer {
-    fn cellvec(&self) -> &Vec<Cell> {
-        &self.buf
-    }
-
-    fn cellvec_mut(&mut self) -> &mut Vec<Cell> {
-        &mut self.buf
-    }
-}
-
 impl Deref for CellBuffer {
     type Target = [Cell];
 
@@ -151,26 +97,19 @@ impl DerefMut for CellBuffer {
     }
 }
 
-impl Index<Pos> for CellBuffer {
+impl Index<(usize, usize)> for CellBuffer {
     type Output = Cell;
 
-    fn index<'a>(&'a self, index: Pos) -> &'a Cell {
+    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
         let (x, y) = index;
         self.get(x, y).expect("index out of bounds")
     }
 }
 
-impl IndexMut<Pos> for CellBuffer {
-    fn index_mut<'a>(&'a mut self, index: Pos) -> &'a mut Cell {
+impl IndexMut<(usize, usize)> for CellBuffer {
+    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
         let (x, y) = index;
         self.get_mut(x, y).expect("index out of bounds")
-    }
-}
-
-impl Default for CellBuffer {
-    /// Constructs a new `CellBuffer` with a size of `(0, 0)`, using the default `Cell` as a blank.
-    fn default() -> CellBuffer {
-        CellBuffer::new(0, 0, Cell::default())
     }
 }
 

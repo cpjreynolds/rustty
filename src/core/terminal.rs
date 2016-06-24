@@ -15,9 +15,8 @@ use libc;
 
 use gag::BufferRedirect;
 
-use core::cellbuffer::{CellAccessor, CellBuffer, Cell, Color, Attr};
+use core::cellbuffer::{CellBuffer, Cell, Color, Attr};
 use core::input::Event;
-use core::position::{Cursor, Pos, Size, HasSize};
 use core::driver::{DevFn, Driver};
 use core::termctl::TermCtl;
 
@@ -58,22 +57,30 @@ type EventBuffer = VecDeque<Event>;
 /// assert_eq!(term[(0, 2)].fg(), Color::Blue);
 /// ```
 pub struct Terminal {
-    termctl: TermCtl, // Terminal controller (termios).
-    tty: File, // Underlying terminal file.
-    cols: usize, // Number of columns in the terminal window.
-    rows: usize, // Number of rows in the terminal window.
-    driver: Driver, // Terminal driver (terminfo).
-    backbuffer: CellBuffer, // Internal backbuffer.
-    frontbuffer: CellBuffer, // Internal frontbuffer.
-    outbuffer: OutBuffer, // Internal output buffer.
-    eventbuffer: EventBuffer, // Event buffer.
-    laststyle: Cell, // Last cell to have its style (fg, bg, attrs) written to the output buffer.
-    cursor: Cursor, // Current cursor position.
+    // Terminal controller (termios).
+    termctl: TermCtl,
+    // Underlying terminal file.
+    tty: File,
+    // Number of columns in the terminal window.
+    cols: usize,
+    // Number of rows in the terminal window.
+    rows: usize,
+    // Terminal driver (terminfo).
+    driver: Driver,
+    // Internal backbuffer.
+    backbuffer: CellBuffer,
+    // Internal frontbuffer.
+    frontbuffer: CellBuffer,
+    // Internal output buffer.
+    outbuffer: OutBuffer,
+    // Event buffer.
+    eventbuffer: EventBuffer,
+    // Stderr handle to dump on panics.
     stderr_handle: BufferRedirect,
 }
 
 impl Terminal {
-    /// Constructs a new `Terminal` using the default `Cell` as a blank.
+    /// Constructs a new `Terminal`.
     ///
     /// # Examples
     ///
@@ -81,45 +88,15 @@ impl Terminal {
     /// use rustty::Terminal;
     ///
     /// let mut term = Terminal::new().unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), ' ');
     /// ```
     pub fn new() -> Result<Terminal, Error> {
-        Terminal::with_cell(Cell::default())
-    }
-
-    /// Constructs a new `Terminal` with each cell set to the given `char` and the default
-    /// `Style`s.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell};
-    ///
-    /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), 'x');
-    /// ```
-    pub fn with_char(ch: char) -> Result<Terminal, Error> {
-        Terminal::with_cell(Cell::with_char(ch))
-    }
-
-    /// Creates a new `Terminal` using the given cell as a blank.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell};
-    ///
-    /// let cell = Cell::with_char('x');
-    ///
-    /// let mut term = Terminal::with_cell(cell).unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), 'x');
-    /// ```
-    pub fn with_cell(cell: Cell) -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(Error::new(ErrorKind::AlreadyExists, "terminal already initialized"));
         }
 
+        // Create the terminal driver.
+        // If this returns an error then the terminal is not supported.
         let driver = try!(Driver::new());
 
         // Open the terminal file for the controlling process.
@@ -128,10 +105,11 @@ impl Terminal {
             .read(true)
             .open("/dev/tty"));
 
+        // TODO: Avoid use of the raw fd.
         let rawtty = tty.as_raw_fd();
 
         // Set up the signal handler for SIGWINCH, which will notify us when the window size has
-        // changed; it does this by setting SIGWINCH_STATUS to 'true'.
+        // changed; it does this by atomically setting SIGWINCH_STATUS to 'true'.
         let handler = sigwinch_handler as libc::size_t;
         let mut sa_winch: libc::sigaction = unsafe { mem::zeroed() };
         sa_winch.sa_sigaction = handler;
@@ -140,22 +118,20 @@ impl Terminal {
             return Err(Error::last_os_error());
         }
 
+        // Create the terminal controller and set required options.
         let termctl = try!(TermCtl::new(rawtty));
         try!(termctl.set());
 
-        // Create the terminal object to hold all of our required state.
         let mut terminal = Terminal {
             termctl: termctl,
             tty: tty,
             cols: 0,
             rows: 0,
             driver: driver,
-            backbuffer: CellBuffer::new(0, 0, cell),
-            frontbuffer: CellBuffer::new(0, 0, cell),
+            backbuffer: CellBuffer::new(0, 0),
+            frontbuffer: CellBuffer::new(0, 0),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
             eventbuffer: EventBuffer::with_capacity(128),
-            laststyle: cell,
-            cursor: Cursor::new(),
             stderr_handle: BufferRedirect::stderr().unwrap(),
         };
 
@@ -165,11 +141,10 @@ impl Terminal {
         // Hide cursor. Writes the control code to the output buffer.
         try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::HideCursor)));
 
-        // Resize the buffers to the size of the underlying terminals. Using the given cell as a
-        // blank.
-        try!(terminal.resize_with_cell(cell));
+        // Resize the buffers to the size of the underlying terminal.
+        try!(terminal.resize());
 
-        // Return the initialized terminal object.
+        // Return the initialized `Terminal`.
         Ok(terminal)
     }
 
@@ -181,16 +156,13 @@ impl Terminal {
     /// use rustty::Terminal;
     ///
     /// let mut term = Terminal::new().unwrap();
-    /// term.swap_buffers().unwrap();
+    /// term.refresh().unwrap();
     /// ```
-    pub fn swap_buffers(&mut self) -> Result<(), Error> {
+    pub fn refresh(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
         }
-
-        // Invalidate the last cursor position.
-        self.cursor.invalidate_last_pos();
 
         for y in 0..self.rows() {
             for x in 0..self.cols() {
@@ -199,12 +171,12 @@ impl Terminal {
                 } else {
                     let cell = self.backbuffer[(x, y)];
                     try!(self.send_style(cell));
-                    try!(self.send_char(Some((x, y)), cell.ch()));
+                    try!(self.send_char(x, y, cell.ch()));
+                    // Update the frontbuffer to reflect the changes.
                     self.frontbuffer[(x, y)] = cell;
                 }
             }
         }
-        try!(self.send_cursor());
         try!(self.flush());
         Ok(())
     }
@@ -237,50 +209,6 @@ impl Terminal {
         self.rows
     }
 
-    /// Clears the internal backbuffer with the default cell.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell};
-    ///
-    /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), 'x');
-    ///
-    /// term.clear().unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), ' ');
-    /// ```
-    pub fn clear(&mut self) -> Result<(), Error> {
-        // Check whether the window has been resized; if it has then update and resize the buffers.
-        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.resize());
-        }
-        self.backbuffer.clear(Cell::default());
-        Ok(())
-    }
-
-    /// Clears the internal backbuffer with the given `char` and the default `Style`s.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell};
-    ///
-    /// let mut term = Terminal::with_char('x').unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), 'x');
-    ///
-    /// term.clear_with_char('y').unwrap();
-    /// assert_eq!(term[(0, 0)].ch(), 'y');
-    /// ```
-    pub fn clear_with_char(&mut self, ch: char) -> Result<(), Error> {
-        // Check whether the window has been resized; if it has then update and resize the buffers.
-        if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.resize());
-        }
-        self.backbuffer.clear(Cell::with_char(ch));
-        Ok(())
-    }
-
     /// Clears the internal backbuffer using the given `Cell` as a blank.
     ///
     /// # Examples
@@ -294,10 +222,10 @@ impl Terminal {
     /// let mut term = Terminal::with_cell(cell1).unwrap();
     /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
-    /// term.clear_with_cell(cell2).unwrap();
+    /// term.clear(cell2).unwrap();
     /// assert_eq!(term[(0, 0)].ch(), 'y');
     /// ```
-    pub fn clear_with_cell(&mut self, cell: Cell) -> Result<(), Error> {
+    pub fn clear(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -335,7 +263,7 @@ impl Terminal {
     /// Resizes the buffers if the underlying terminal window size has changed, using the default
     /// `Cell` as a blank.
     ///
-    /// This method will be called automatically on each call to `swap_buffers()` or a `clear()`
+    /// This method will be called automatically on each call to `refresh()` or a `clear()`
     /// method.
     ///
     /// This method is guaranteed to resize the buffers if a call to `check_resize()` returns
@@ -356,87 +284,11 @@ impl Terminal {
     /// let new_size = term.try_resize().unwrap();
     /// ```
     pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
-        self.try_resize_with_cell(Cell::default())
-    }
-
-    /// Resizes the buffers if the underlying terminal window size has changed, using the given
-    /// `char` and the default `Style`s as a blank.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::Terminal;
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// // If new_size == Some(T) then T is the new size of the terminal.
-    /// // If new_size == None then the terminal has not resized.
-    /// let new_size = term.try_resize_with_char('x').unwrap();
-    /// ```
-    pub fn try_resize_with_char(&mut self, ch: char) -> Result<Option<(usize, usize)>, Error> {
-        self.try_resize_with_cell(Cell::with_char(ch))
-    }
-
-    /// Resizes the buffers if the underlying terminal window size has changed, using the given
-    /// `Cell` as a blank.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, Cell};
-    ///
-    /// let cell = Cell::with_char('x');
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// // If new_size == Some(T) then T is the new size of the terminal.
-    /// // If new_size == None then the terminal has not resized.
-    /// let new_size = term.try_resize_with_cell(cell).unwrap();
-    /// ```
-    pub fn try_resize_with_cell(&mut self, cell: Cell) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
-            try!(self.resize_with_cell(cell));
+            try!(self.resize());
             return Ok(Some((self.cols, self.rows)));
         }
         Ok(None)
-    }
-
-    /// Sets the cursor position to (x, y).
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::Terminal;
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// term.set_cursor(1, 1).unwrap();
-    /// ```
-    pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
-        if self.cursor.pos().is_none() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)));
-        }
-        self.cursor.set_pos(Some((x, y)));
-        try!(self.send_cursor());
-        Ok(())
-    }
-
-    /// Hides the cursor.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::Terminal;
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    ///
-    /// term.hide_cursor().unwrap();
-    /// ```
-    pub fn hide_cursor(&mut self) -> Result<(), Error> {
-        if self.cursor.pos().is_some() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::HideCursor)));
-        }
-        Ok(())
     }
 
     /// Gets an event from the event stream, waiting at most the value specified in `timeout`.
@@ -476,47 +328,34 @@ impl Terminal {
         }
     }
 
-    fn send_cursor(&mut self) -> Result<(), Error> {
-        if let Some((cx, cy)) = self.cursor.pos() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
-        }
+    fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
+        try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(x, y))));
         Ok(())
     }
 
-    fn send_char(&mut self, coord: Option<Pos>, ch: char) -> Result<(), Error> {
-        self.cursor.set_pos(coord);
-        if !self.cursor.is_seq() {
-            try!(self.send_cursor());
-        }
+    fn send_char(&mut self, x: usize, y: usize, ch: char) -> Result<(), Error> {
+        try!(self.set_cursor(x, y));
         try!(write!(self.outbuffer, "{}", ch));
         Ok(())
     }
 
     fn send_clear(&mut self) -> Result<(), Error> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
-        try!(self.send_cursor());
         try!(self.flush());
-        self.cursor.invalidate_last_pos();
         Ok(())
     }
 
     fn send_style(&mut self, cell: Cell) -> Result<(), Error> {
-        if cell.fg() != self.laststyle.fg() || cell.bg() != self.laststyle.bg() ||
-           cell.attrs() != self.laststyle.attrs() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
+        try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
 
-            match cell.attrs() {
-                Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold))),
-                Attr::Underline => {
-                    try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline)))
-                }
-                Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
-                _ => {}
-            }
-
-            try!(self.write_sgr(cell.fg(), cell.bg()));
-            self.laststyle = cell;
+        match cell.attrs() {
+            Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold))),
+            Attr::Underline => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline))),
+            Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
+            _ => {}
         }
+
+        try!(self.write_sgr(cell.fg(), cell.bg()));
         Ok(())
     }
 
@@ -536,19 +375,15 @@ impl Terminal {
         Ok(())
     }
 
-    fn resize(&mut self) -> Result<(), Error> {
-        self.resize_with_cell(Cell::default())
-    }
-
     /// Updates the size of the Terminal object to reflect that of the underlying terminal.
-    fn resize_with_cell(&mut self, blank: Cell) -> Result<(), Error> {
+    fn resize(&mut self) -> Result<(), Error> {
         let (cols, rows) = try!(self.termctl.window_size());
         self.cols = cols;
         self.rows = rows;
-        self.backbuffer.resize(self.cols, self.rows, blank);
-        self.frontbuffer.resize(self.cols, self.rows, blank);
-        self.frontbuffer.clear(blank);
-        try!(self.send_style(blank));
+        self.backbuffer.resize(self.cols, self.rows, Cell::default());
+        self.frontbuffer.resize(self.cols, self.rows, Cell::default());
+        self.frontbuffer.clear(Cell::default());
+        try!(self.send_style(Cell::default()));
         try!(self.send_clear());
         Ok(())
     }
@@ -631,33 +466,6 @@ impl Terminal {
     }
 }
 
-impl HasSize for Terminal {
-    /// Returns the size of the terminal as (cols, rows).
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// use rustty::{Terminal, CellAccessor, HasSize};
-    ///
-    /// let mut term = Terminal::new().unwrap();
-    /// let size = term.size();
-    /// assert_eq!(size, (term.cols(), term.rows()));
-    /// ```
-    fn size(&self) -> Size {
-        (self.cols, self.rows)
-    }
-}
-
-impl CellAccessor for Terminal {
-    fn cellvec(&self) -> &Vec<Cell> {
-        self.backbuffer.cellvec()
-    }
-
-    fn cellvec_mut(&mut self) -> &mut Vec<Cell> {
-        self.backbuffer.cellvec_mut()
-    }
-}
-
 impl Deref for Terminal {
     type Target = [Cell];
 
@@ -672,16 +480,16 @@ impl DerefMut for Terminal {
     }
 }
 
-impl Index<Pos> for Terminal {
+impl Index<(usize, usize)> for Terminal {
     type Output = Cell;
 
-    fn index<'a>(&'a self, index: Pos) -> &'a Cell {
+    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
         &self.backbuffer[index]
     }
 }
 
-impl IndexMut<Pos> for Terminal {
-    fn index_mut<'a>(&'a mut self, index: Pos) -> &'a mut Cell {
+impl IndexMut<(usize, usize)> for Terminal {
+    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
         &mut self.backbuffer[index]
     }
 }

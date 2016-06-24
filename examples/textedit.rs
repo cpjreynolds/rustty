@@ -24,7 +24,7 @@ fn main() {
     };
     let mut term = Terminal::new().unwrap();
     term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.color);
-    term.swap_buffers().unwrap();
+    term.refresh().unwrap();
     loop {
         let evt = term.get_event(Some(Duration::from_millis(100))).unwrap();
         if let Some(Event::Key(ch)) = evt {
@@ -66,7 +66,7 @@ fn main() {
             }
             term[(cursor.lpos.x, cursor.lpos.y)].set_bg(Color::Default);
             term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.color);
-            term.swap_buffers().unwrap();
+            term.refresh().unwrap();
         }
     }
 }
