@@ -147,40 +147,6 @@ impl Cell {
         }
     }
 
-    /// Creates a new `Cell` with the given `char` and default style.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Cell, Color, Attr};
-    ///
-    /// let mut cell = Cell::with_char('x');
-    /// assert_eq!(cell.ch(), 'x');
-    /// assert_eq!(cell.fg(), Color::Default);
-    /// assert_eq!(cell.bg(), Color::Default);
-    /// assert_eq!(cell.attrs(), Attr::Default);
-    /// ```
-    pub fn with_char(ch: char) -> Cell {
-        Cell::new(ch, Color::Default, Color::Default, Attr::Default)
-    }
-
-    /// Creates a new `Cell` with the given style and a blank `char`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use rustty::{Cell, Color, Attr};
-    ///
-    /// let mut cell = Cell::with_style(Color::Default, Color::Red, Attr::Bold);
-    /// assert_eq!(cell.fg(), Color::Default);
-    /// assert_eq!(cell.bg(), Color::Red);
-    /// assert_eq!(cell.attrs(), Attr::Bold);
-    /// assert_eq!(cell.ch(), ' ');
-    /// ```
-    pub fn with_style(fg: Color, bg: Color, attr: Attr) -> Cell {
-        Cell::new(' ', fg, bg, attr)
-    }
-
     /// Returns the `Cell`'s character.
     ///
     /// # Examples
