@@ -328,18 +328,23 @@ impl Terminal {
         }
     }
 
-    fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
+    fn send_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(x, y))));
         Ok(())
     }
 
+    // Sets the cursor to the specified coordinates and then writes the specified character.
+    //
+    // At the moment, wide characters are going to make things go very, very wrong...probably.
     fn send_char(&mut self, x: usize, y: usize, ch: char) -> Result<(), Error> {
-        try!(self.set_cursor(x, y));
+        try!(self.send_cursor(x, y));
         try!(write!(self.outbuffer, "{}", ch));
         Ok(())
     }
 
+    // Clears the terminal with the default style.
     fn send_clear(&mut self) -> Result<(), Error> {
+        try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
         try!(self.flush());
         Ok(())
@@ -383,7 +388,6 @@ impl Terminal {
         self.backbuffer.resize(self.cols, self.rows, Cell::default());
         self.frontbuffer.resize(self.cols, self.rows, Cell::default());
         self.frontbuffer.clear(Cell::default());
-        try!(self.send_style(Cell::default()));
         try!(self.send_clear());
         Ok(())
     }
