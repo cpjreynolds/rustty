@@ -35,7 +35,7 @@ fn main() {
 
     let mut radius = 10u32;
     'main: loop {
-        while let Some(Event::Key(ch)) = term.get_event(Duration::new(0, 0)).unwrap() {
+        while let Some(Event::Key(ch)) = term.get_event(Some(Duration::new(0, 0))).unwrap() {
             match ch {
                 'q' => break 'main,
                 '+' => radius = radius.saturating_add(1),

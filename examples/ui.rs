@@ -23,7 +23,7 @@ fn main() {
     let mut maindlg = create_maindlg();
     maindlg.window_mut().align(&term, HorizontalAlign::Middle, VerticalAlign::Middle, 0);
     'main: loop {
-        while let Some(Event::Key(ch)) = term.get_event(Duration::new(0, 0)).unwrap() {
+        while let Some(Event::Key(ch)) = term.get_event(Some(Duration::new(0, 0))).unwrap() {
             match maindlg.result_for_key(ch) {
                 Some(DialogResult::Ok) => break 'main,
                 Some(DialogResult::Custom(i)) => {

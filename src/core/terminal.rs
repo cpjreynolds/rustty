@@ -456,9 +456,9 @@ impl Terminal {
     ///
     /// let mut term = Terminal::new().unwrap();
     ///
-    /// let evt = term.get_event(Duration::from_secs(1)).unwrap();
+    /// let evt = term.get_event(Some(Duration::from_secs(1))).unwrap();
     /// ```
-    pub fn get_event(&mut self, timeout: Duration) -> Result<Option<Event>, Error> {
+    pub fn get_event(&mut self, timeout: Option<Duration>) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.
         if self.eventbuffer.is_empty() {
             // Event buffer is empty, lets poll the terminal for events.
@@ -557,11 +557,14 @@ impl Terminal {
     /// the specified timeout for input to become available.
     ///
     /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, timeout: Duration) -> Result<usize, Error> {
+    fn read_events(&mut self, maybe_timeout: Option<Duration>) -> Result<usize, Error> {
         let nevts;
-        let mut timeout = libc::timeval {
-            tv_sec: timeout.as_secs() as libc::time_t,
-            tv_usec: (timeout.subsec_nanos() as libc::suseconds_t) / 1000,
+        let timeout: *mut libc::timeval = match maybe_timeout {
+            None => ptr::null_mut(),
+            Some(timeout) => &mut libc::timeval {
+                tv_sec: timeout.as_secs() as libc::time_t,
+                tv_usec: (timeout.subsec_nanos() as libc::suseconds_t) / 1000,
+            }
         };
         let rawfd = self.tty.as_raw_fd();
         let nfds = rawfd + 1;
@@ -579,7 +582,7 @@ impl Terminal {
                              &mut rfds,
                              ptr::null_mut(),
                              ptr::null_mut(),
-                             &mut timeout)
+                             timeout)
             };
 
             if res == -1 {

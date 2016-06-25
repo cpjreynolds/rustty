@@ -26,7 +26,7 @@ fn main() {
     term[(cursor.pos.x, cursor.pos.y)].set_bg(cursor.color);
     term.swap_buffers().unwrap();
     loop {
-        let evt = term.get_event(Duration::from_millis(100)).unwrap();
+        let evt = term.get_event(Some(Duration::from_millis(100))).unwrap();
         if let Some(Event::Key(ch)) = evt {
             match ch {
                 '`' => {
