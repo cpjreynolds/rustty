@@ -19,12 +19,12 @@ use core::cellbuffer::{CellBuffer, Cell, Color, Attr};
 use core::input::Event;
 use core::driver::{DevFn, Driver};
 
-/// Set to true by the sigwinch handler. Reset to false when buffers are resized.
+// Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
-/// Ensures that there is only ever one Terminal object at any one time.
-/// Set to true on creation of a Terminal object.
-/// Reset to false when terminal object goes out of scope.
+// Ensures that there is only ever one Terminal object at any one time.
+// Set to true on creation of a Terminal object.
+// Reset to false when terminal object goes out of scope.
 static RUSTTY_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
 type OutBuffer = Vec<u8>;
@@ -39,14 +39,17 @@ type EventBuffer = VecDeque<Event>;
 /// # Examples
 ///
 /// ```no_run
+/// # use std::io::Error;
 /// use rustty::{Terminal, Cell, Color};
 ///
+/// # fn foo() -> Result<(), Error> {
+///
 /// // Construct a new Terminal.
-/// let mut term = Terminal::new().unwrap();
+/// let mut term = try!(Terminal::new());
 ///
 /// // Terminals can be indexed to access specific cells.
 /// // Indices are by column then row, corresponding to a cell's x and y coordinates.
-/// term[(0, 0)] = Cell::with_char('x');
+/// term[(0, 0)].set_ch('x');
 /// assert_eq!(term[(0, 0)].ch(), 'x');
 ///
 /// term[(0, 1)].set_bg(Color::Red);
@@ -54,6 +57,9 @@ type EventBuffer = VecDeque<Event>;
 ///
 /// term[(0, 2)].set_fg(Color::Blue);
 /// assert_eq!(term[(0, 2)].fg(), Color::Blue);
+///
+/// # Ok(())
+/// # }
 /// ```
 pub struct Terminal {
     // Underlying terminal file.
@@ -84,9 +90,15 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::Terminal;
     ///
-    /// let mut term = Terminal::new().unwrap();
+    /// # fn foo() -> Result<(), Error> {
+    ///
+    /// let mut term = try!(Terminal::new());
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn new() -> Result<Terminal, Error> {
         // Make sure there is only ever one instance.
@@ -150,15 +162,21 @@ impl Terminal {
         Ok(terminal)
     }
 
-    /// Swaps buffers to display the current backbuffer.
+    /// Updates the underlying terminal, displaying the current backbuffer.
     ///
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::Terminal;
     ///
-    /// let mut term = Terminal::new().unwrap();
-    /// term.refresh().unwrap();
+    /// # fn foo() -> Result<(), Error> {
+    ///
+    /// let mut term = try!(Terminal::new());
+    /// try!(term.refresh());
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn refresh(&mut self) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -188,10 +206,16 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::Terminal;
     ///
-    /// let mut term = Terminal::new().unwrap();
+    /// # fn foo() -> Result<(), Error> {
+    ///
+    /// let mut term = try!(Terminal::new());
     /// let width = term.cols();
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn cols(&self) -> usize {
         self.cols
@@ -202,10 +226,16 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::Terminal;
     ///
-    /// let mut term = Terminal::new().unwrap();
+    /// # fn foo() -> Result<(), Error> {
+    ///
+    /// let mut term = try!(Terminal::new());
     /// let height = term.rows();
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn rows(&self) -> usize {
         self.rows
@@ -224,16 +254,27 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::{Terminal, Cell};
     ///
-    /// let cell1 = Cell::with_char('x');
-    /// let cell2 = Cell::with_char('y');
+    /// # fn foo() -> Result<(), Error> {
     ///
-    /// let mut term = Terminal::with_cell(cell1).unwrap();
+    /// let mut cell1 = Cell::default();
+    /// cell1.set_ch('x');
+    /// let mut cell2 = Cell::default();
+    /// cell2.set_ch('y');
+    ///
+    /// let mut term = try!(Terminal::new());
+    /// assert_eq!(term[(0, 0)].ch(), ' ');
+    ///
+    /// try!(term.clear(cell1));
     /// assert_eq!(term[(0, 0)].ch(), 'x');
     ///
-    /// term.clear(cell2).unwrap();
+    /// try!(term.clear(cell2));
     /// assert_eq!(term[(0, 0)].ch(), 'y');
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn clear(&mut self, cell: Cell) -> Result<(), Error> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
@@ -252,19 +293,25 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::{Terminal, Cell};
     ///
-    /// let mut term = Terminal::new().unwrap();
+    /// # fn foo() -> Result<(), Error> {
+    ///
+    /// let mut term = try!(Terminal::new());
     ///
     /// let will_resize = term.check_resize();
     ///
-    /// // If will_resize == true, swap_buffers() will resize the buffers.
-    /// term.swap_buffers().unwrap();
+    /// // If will_resize == true, refresh() will resize the buffers.
+    /// try!(term.refresh());
     /// // So will clear().
-    /// term.clear().unwrap();
+    /// try!(term.clear(Cell::default()));
     ///
     /// // Unless try_resize() is called.
-    /// term.try_resize().unwrap();
+    /// try!(term.try_resize());
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn check_resize(&self) -> bool {
         SIGWINCH_STATUS.load(Ordering::SeqCst)
@@ -277,7 +324,7 @@ impl Terminal {
     /// method.
     ///
     /// This method is guaranteed to resize the buffers if a call to `check_resize()` returns
-    /// `true` and neither `swap_buffers()` nor a `clear()` method has been called since.
+    /// `true` and neither `refresh()` nor a `clear()` method has been called since.
     ///
     /// Returns `Some((cols, rows))` if the buffers were resized and `None` if no resize was
     /// performed.
@@ -285,13 +332,19 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
+    /// # use std::io::Error;
     /// use rustty::Terminal;
     ///
-    /// let mut term = Terminal::new().unwrap();
+    /// # fn foo() -> Result<(), Error> {
+    ///
+    /// let mut term = try!(Terminal::new());
     ///
     /// // If new_size == Some(T) then T is the new size of the terminal.
     /// // If new_size == None then the terminal has not resized.
-    /// let new_size = term.try_resize().unwrap();
+    /// let new_size = try!(term.try_resize());
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
@@ -312,13 +365,18 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::thread::sleep_ms;
+    /// # use std::io::Error;
     /// use rustty::{Terminal, Event};
     /// use std::time::Duration;
     ///
-    /// let mut term = Terminal::new().unwrap();
+    /// # fn foo() -> Result<(), Error> {
     ///
-    /// let evt = term.get_event(Some(Duration::from_secs(1))).unwrap();
+    /// let mut term = try!(Terminal::new());
+    ///
+    /// let evt = try!(term.get_event(Some(Duration::from_secs(1))));
+    ///
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn get_event(&mut self, timeout: Option<Duration>) -> Result<Option<Event>, Error> {
         // Check if the event buffer is empty.

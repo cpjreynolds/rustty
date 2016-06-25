@@ -152,9 +152,12 @@ impl Cell {
     /// # Examples
     ///
     /// ```
-    /// use rustty::Cell;
+    /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::with_char('x');
+    /// let cell = Cell::default();
+    /// assert_eq!(cell.ch(), ' ');
+    ///
+    /// let cell = Cell::new('x', Color::Default, Color::Default, Attr::Default);
     /// assert_eq!(cell.ch(), 'x');
     /// ```
     pub fn ch(&self) -> char {
@@ -168,11 +171,11 @@ impl Cell {
     /// ```
     /// use rustty::Cell;
     ///
-    /// let mut cell = Cell::with_char('x');
-    /// assert_eq!(cell.ch(), 'x');
+    /// let mut cell = Cell::default();
+    /// assert_eq!(cell.ch(), ' ');
     ///
-    /// cell.set_ch('y');
-    /// assert_eq!(cell.ch(), 'y');
+    /// cell.set_ch('x');
+    /// assert_eq!(cell.ch(), 'x');
     /// ```
     pub fn set_ch(&mut self, newch: char) -> &mut Cell {
         self.ch = newch;
@@ -186,7 +189,7 @@ impl Cell {
     /// ```
     /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::with_style(Color::Blue, Color::Default, Attr::Default);
+    /// let cell = Cell::new(' ', Color::Blue, Color::Default, Attr::Default);
     /// assert_eq!(cell.fg(), Color::Blue);
     /// ```
     pub fn fg(&self) -> Color {
@@ -218,7 +221,7 @@ impl Cell {
     /// ```
     /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::with_style(Color::Default, Color::Green, Attr::Default);
+    /// let mut cell = Cell::new(' ', Color::Default, Color::Green, Attr::Default);
     /// assert_eq!(cell.bg(), Color::Green);
     /// ```
     pub fn bg(&self) -> Color {
