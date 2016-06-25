@@ -86,11 +86,7 @@ documentation][1].
 
 ## Contact
 
-If you encounter any issues with the library or have suggestions,
-please report them with the [issue tracker](https://github.com/cpjreynolds/rustty/issues).
-
-If you have any further questions, please don't hesitate to
-[email me](mailto:cpjreynolds@gmail.com), and I respond as soon as
-I am able.
+If you encounter any issues with the library, have questions or suggestions,
+please [submit an issue](https://github.com/cpjreynolds/rustty/issues/new).
 
 [1]: http://cpjreynolds.github.io/rustty
