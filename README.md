@@ -1,6 +1,8 @@
 # rustty: a terminal UI library
 
-[![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty) [![Crates.io](https://img.shields.io/crates/v/rustty.svg)](https://crates.io/crates/rustty) [![Crates.io](https://img.shields.io/crates/l/rustty.svg)](https://crates.io/crates/rustty)
+[![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty)
+[![Crates.io](https://img.shields.io/crates/v/rustty.svg)](https://crates.io/crates/rustty)
+[![Crates.io](https://img.shields.io/crates/l/rustty.svg)](https://raw.githubusercontent.com/cpjreynolds/rustty/master/LICENSE)
 
 - [API Documentation][1]
 - [Intro](#intro)
@@ -71,7 +73,7 @@ character and its foreground and background styles.
 
 ### Events
 
-Events are how changes in a terminal's state are represented. 
+Events are how changes in a terminal's state are represented.
 A terminal has an associated event stream which acts much like a UNIX pipe,
 or a FIFO queue. When events occur they are pushed on to
 the back of the stream; when events are read they are taken
@@ -84,11 +86,7 @@ documentation][1].
 
 ## Contact
 
-If you encounter any issues with the library or have suggestions,
-please report them with the [issue tracker](https://github.com/cpjreynolds/rustty/issues).
-
-If you have any further questions, please don't hesitate to 
-[email me](mailto:cpjreynolds@gmail.com), and I respond as soon as
-I am able.
+If you encounter any issues with the library, have questions or suggestions,
+please [submit an issue](https://github.com/cpjreynolds/rustty/issues/new).
 
 [1]: http://cpjreynolds.github.io/rustty
