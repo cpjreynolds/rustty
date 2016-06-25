@@ -211,6 +211,14 @@ impl Terminal {
         self.rows
     }
 
+    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
+        self.backbuffer.get(x, y)
+    }
+
+    pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
+        self.backbuffer.get_mut(x, y)
+    }
+
     /// Clears the internal backbuffer using the given `Cell` as a blank.
     ///
     /// # Examples
@@ -401,15 +409,17 @@ impl Terminal {
     /// the specified timeout for input to become available.
     ///
     /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, maybe_timeout: Option<Duration>) -> Result<usize, Error> {
+    fn read_events(&mut self, timeout: Option<Duration>) -> Result<usize, Error> {
         let nevts;
-        let timeout: *mut libc::timeval = match maybe_timeout {
-            None => ptr::null_mut(),
-            Some(timeout) => &mut libc::timeval {
-                tv_sec: timeout.as_secs() as libc::time_t,
-                tv_usec: (timeout.subsec_nanos() as libc::suseconds_t) / 1000,
+        let mut timeout = if let Some(tout) = timeout {
+            &mut libc::timeval {
+                tv_sec: tout.as_secs() as libc::time_t,
+                tv_usec: (tout.subsec_nanos() as libc::suseconds_t) / 1000,
             }
+        } else {
+            ptr::null_mut()
         };
+
         let rawfd = self.tty.as_raw_fd();
         let nfds = rawfd + 1;
 
@@ -421,13 +431,8 @@ impl Terminal {
         // Because the sigwinch handler will interrupt select, if select returns EINTR we loop
         // and try again. All other errors will return normally.
         loop {
-            let res = unsafe {
-                libc::select(nfds,
-                             &mut rfds,
-                             ptr::null_mut(),
-                             ptr::null_mut(),
-                             timeout)
-            };
+            let res =
+                unsafe { libc::select(nfds, &mut rfds, ptr::null_mut(), ptr::null_mut(), timeout) };
 
             if res == -1 {
                 let err = Error::last_os_error();
