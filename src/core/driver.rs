@@ -7,31 +7,34 @@ use term::terminfo::TermInfo;
 use term::terminfo::parm;
 use term::terminfo::parm::{Param, Variables};
 
-// Terminfo keys. These are arrays because the terminfo database from the `term` crate sometimes
-// uses the variable name and othertimes the capname.
-//
-// Arrays are formatted as ["variable_name", "cap_name"].
-const KEY_F1: &'static [&'static str] = &["key_f1", "kf1"];
-const KEY_F2: &'static [&'static str] = &["key_f2", "kf2"];
-const KEY_F3: &'static [&'static str] = &["key_f3", "kf3"];
-const KEY_F4: &'static [&'static str] = &["key_f4", "kf4"];
-const KEY_F5: &'static [&'static str] = &["key_f5", "kf5"];
-const KEY_F6: &'static [&'static str] = &["key_f6", "kf6"];
-const KEY_F7: &'static [&'static str] = &["key_f7", "kf7"];
-const KEY_F8: &'static [&'static str] = &["key_f8", "kf8"];
-const KEY_F9: &'static [&'static str] = &["key_f9", "kf9"];
-const KEY_F10: &'static [&'static str] = &["key_f10", "kf10"];
-const KEY_F11: &'static [&'static str] = &["key_f11", "kf11"];
-const KEY_F12: &'static [&'static str] = &["key_f12", "kf12"];
-const KEY_UP: &'static [&'static str] = &["key_up", "kcuu1"];
-const KEY_DOWN: &'static [&'static str] = &["key_down", "kcud1"];
-const KEY_LEFT: &'static [&'static str] = &["key_left", "kcub1"];
-const KEY_RIGHT: &'static [&'static str] = &["key_right", "kcuf1"];
+use core::input::Event;
 
-// Array of terminal keys.
-const KEYS: &'static [&'static [&'static str]] = &[KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6,
-                                                   KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11,
-                                                   KEY_F12, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT];
+// Array of tuples of events and their corresponding terminal keys.
+// Tuples are of the form (event, variable_name, tuple_name).
+// Both the variable_name and cap_name are given since terminfo
+// uses a combination of variable and cap names.
+const KEYS: &'static [(Event, &'static str, &'static str)] = &[
+    (Event::Function(1), "key_f1", "kf1"),
+    (Event::Function(2), "key_f2", "kf2"),
+    (Event::Function(3), "key_f3", "kf3"),
+    (Event::Function(4), "key_f4", "kf4"),
+    (Event::Function(5), "key_f5", "kf5"),
+    (Event::Function(6), "key_f6", "kf6"),
+    (Event::Function(7), "key_f7", "kf7"),
+    (Event::Function(8), "key_f8", "kf8"),
+    (Event::Function(9), "key_f9", "kf9"),
+    (Event::Function(10), "key_f10", "kf10"),
+    (Event::Function(11), "key_f11", "kf11"),
+    (Event::Function(12), "key_f12", "kf12"),
+    (Event::Up, "key_up", "kcuu1"),
+    (Event::Down, "key_down", "kcud1"),
+    (Event::Left, "key_left", "kcub1"),
+    (Event::Right, "key_right", "kcuf1"),
+    (Event::PageUp, "key_ppage", "kpp"),
+    (Event::PageDown, "key_npage", "knp"),
+    (Event::Home, "key_home", "khome"),
+    (Event::End, "key_end", "kend"),
+];
 
 // String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
