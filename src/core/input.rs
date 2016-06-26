@@ -5,4 +5,13 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Event {
     Char(char),     // Ascii characters including escape, delete, bell, etc
+    Function(u8),   // Function keys (eg. f1, f2, ...)
+    Left,
+    Right,
+    Up,
+    Down,
+    PageUp,
+    PageDown,
+    Home,
+    End,
 }
