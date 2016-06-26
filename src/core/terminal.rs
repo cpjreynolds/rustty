@@ -7,7 +7,7 @@ use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
 use std::collections::VecDeque;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use std::ptr;
 use std::mem;
 
@@ -469,13 +469,10 @@ impl Terminal {
     /// Returns the number of events read into the buffer.
     fn read_events(&mut self, timeout: Option<Duration>) -> Result<usize, Error> {
         let nevts;
-        let mut timeout = if let Some(tout) = timeout {
-            &mut libc::timeval {
-                tv_sec: tout.as_secs() as libc::time_t,
-                tv_usec: (tout.subsec_nanos() as libc::suseconds_t) / 1000,
-            }
+        let mut timeout_arg = if let Some(tout) = timeout {
+            &cvt_duration(tout)
         } else {
-            ptr::null_mut()
+            ptr::null()
         };
 
         let rawfd = self.tty.as_raw_fd();
@@ -488,15 +485,27 @@ impl Terminal {
 
         // Because the sigwinch handler will interrupt select, if select returns EINTR we loop
         // and try again. All other errors will return normally.
+        let start_inst = Instant::now();
         loop {
-            let res =
-                unsafe { libc::select(nfds, &mut rfds, ptr::null_mut(), ptr::null_mut(), timeout) };
+            let res = unsafe {
+                libc::pselect(nfds,
+                              &mut rfds,
+                              ptr::null_mut(),
+                              ptr::null_mut(),
+                              timeout_arg,
+                              ptr::null())
+            };
 
             if res == -1 {
                 let err = Error::last_os_error();
 
                 if err.kind() == ErrorKind::Interrupted {
                     // Errno is EINTR, loop and try again.
+                    // If a timeout was specified, subtract elapsed time from it.
+                    if let Some(orig_tout) = timeout {
+                        let new_tout = orig_tout - start_inst.elapsed();
+                        timeout_arg = &cvt_duration(new_tout);
+                    }
                     continue;
                 } else {
                     // Error other than EINTR, return to caller.
@@ -627,4 +636,12 @@ impl Drop for Terminal {
 // Sigwinch handler to notify when window has resized.
 extern "C" fn sigwinch_handler(_: i32) {
     SIGWINCH_STATUS.store(true, Ordering::SeqCst);
+}
+
+// Convenience function to convert `Duration` to `libc::timespec`.
+fn cvt_duration(dur: Duration) -> libc::timespec {
+    libc::timespec {
+        tv_sec: dur.as_secs() as libc::time_t,
+        tv_nsec: dur.subsec_nanos() as libc::c_long,
+    }
 }
