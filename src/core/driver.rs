@@ -39,6 +39,8 @@ const KEYS: &'static [(Event, &'static str, &'static str)] = &[
 // String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
 const EXIT_CA: &'static str = "rmcup";
+const ENTER_XMIT: &'static str = "smkx";
+const EXIT_XMIT: &'static str = "rmkx";
 const SHOW_CURSOR: &'static str = "cnorm";
 const HIDE_CURSOR: &'static str = "civis";
 const SET_CURSOR: &'static str = "cup";
@@ -60,6 +62,8 @@ const SETBG: &'static str = "setab";
 // TODO: Optional functionality testing.
 const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
                                                 EXIT_CA,
+                                                ENTER_XMIT,
+                                                EXIT_XMIT,
                                                 SHOW_CURSOR,
                                                 HIDE_CURSOR,
                                                 SET_CURSOR,
@@ -79,6 +83,8 @@ const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
 pub enum DevFn {
     EnterCa,
     ExitCa,
+    EnterXmit,
+    ExitXmit,
     ShowCursor,
     HideCursor,
     SetCursor(usize, usize),
@@ -97,6 +103,8 @@ impl DevFn {
         match *self {
             DevFn::EnterCa => ENTER_CA,
             DevFn::ExitCa => EXIT_CA,
+            DevFn::EnterXmit => ENTER_XMIT,
+            DevFn::ExitXmit => EXIT_XMIT,
             DevFn::ShowCursor => SHOW_CURSOR,
             DevFn::HideCursor => HIDE_CURSOR,
             DevFn::SetCursor(..) => SET_CURSOR,
