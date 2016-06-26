@@ -612,7 +612,7 @@ impl Terminal {
             let mut n = 0;
             for ch in buf.chars() {
                 // Push each character onto the event queue and increment the count.
-                self.eventbuffer.push_back(Event::Key(ch));
+                self.eventbuffer.push_back(Event::Char(ch));
                 n += 1;
             }
             Ok(n)
