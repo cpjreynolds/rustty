@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 
 use std::io::{Error, ErrorKind};
+use std::collections::HashMap;
+use std::str;
 
 use term::terminfo::TermInfo;
 use term::terminfo::parm;
@@ -122,6 +124,7 @@ impl DevFn {
 
 pub struct Driver {
     tinfo: TermInfo,
+    escape_seq_map: HashMap<String, Event>,
 }
 
 // Validates and returns a reference to the terminfo database.
@@ -156,7 +159,35 @@ impl Driver {
     // If successful, the terminfo database is guaranteed to contain all capabilities we support.
     pub fn new() -> Result<Driver, Error> {
         let tinfo = try!(get_tinfo());
-        Ok(Driver { tinfo: tinfo })
+
+        let mut driver = Driver {
+            tinfo: tinfo,
+            escape_seq_map: HashMap::new(),
+        };
+
+        try!(driver.populate_escape_seq_map());
+
+        Ok(driver)
+    }
+
+    // Populates a hash map mapping escape sequences to events
+    fn populate_escape_seq_map(&mut self) -> Result<(), Error> {
+        let strings = &self.tinfo.strings;
+        for &(event, variable, cap_name) in KEYS {
+            let escape_seq_utf8 = try!(strings.get(variable)
+                .or_else(|| { strings.get(cap_name) })
+                .ok_or(Error::new(ErrorKind::NotFound,
+                    format!("terminal missing escape sequence (variable: {}, cap_name, {})",
+                            variable, cap_name))));
+
+            let escape_seq_str = try!(str::from_utf8(escape_seq_utf8).or(Err(Error::new(ErrorKind::InvalidData,
+                format!("terminal escape sequence for (variable: {}, cap_name{}) is invalid utf8",
+                        variable, cap_name)))));
+
+            self.escape_seq_map.insert(String::from(escape_seq_str), event);
+        }
+
+        Ok(())
     }
 
     // Returns the device specific escape sequence for the given `DevFn`.
