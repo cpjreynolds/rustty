@@ -38,6 +38,8 @@ const KEYS: &'static [(Event, &'static str, &'static str)] = &[
     (Event::End, "key_end", "kend"),
 ];
 
+const ESCAPE: char = '\u{1b}';
+
 // String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
 const EXIT_CA: &'static str = "rmcup";
@@ -188,6 +190,22 @@ impl Driver {
         }
 
         Ok(())
+    }
+
+    pub fn get_event(&self, buf: &String) -> Option<Event> {
+        let mut iter = buf.chars();
+        let first = iter.next().expect("got empty string");
+        let rest = iter.as_str();
+
+        if first == ESCAPE {
+            if rest.is_empty() {
+                Some(Event::Char(first))
+            } else {
+                self.escape_seq_map.get(buf).map(|r| *r)
+            }
+        } else {
+            Some(Event::Char(first))
+        }
     }
 
     // Returns the device specific escape sequence for the given `DevFn`.
