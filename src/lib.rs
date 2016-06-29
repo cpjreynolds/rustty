@@ -16,6 +16,8 @@
 extern crate term;
 extern crate libc;
 extern crate gag;
+#[macro_use]
+extern crate bitflags;
 
 mod core;
 

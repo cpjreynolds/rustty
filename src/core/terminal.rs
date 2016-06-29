@@ -285,38 +285,6 @@ impl Terminal {
         Ok(())
     }
 
-    /// Checks whether the underlying window size has changed and the buffers have not been
-    /// resized yet. If this method returns `true` the next call to `swap_buffers()` or a `clear()`
-    /// method is guaranteed to resize the buffers unless a call to a `try_resize()` method is
-    /// made.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use std::io::Error;
-    /// use rustty::{Terminal, Cell};
-    ///
-    /// # fn foo() -> Result<(), Error> {
-    ///
-    /// let mut term = try!(Terminal::new());
-    ///
-    /// let will_resize = term.check_resize();
-    ///
-    /// // If will_resize == true, refresh() will resize the buffers.
-    /// try!(term.refresh());
-    /// // So will clear().
-    /// try!(term.clear(Cell::default()));
-    ///
-    /// // Unless try_resize() is called.
-    /// try!(term.try_resize());
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn check_resize(&self) -> bool {
-        SIGWINCH_STATUS.load(Ordering::SeqCst)
-    }
-
     /// Resizes the buffers if the underlying terminal window size has changed, using the default
     /// `Cell` as a blank.
     ///
@@ -500,12 +468,16 @@ impl Terminal {
                 let err = Error::last_os_error();
 
                 if err.kind() == ErrorKind::Interrupted {
-                    // Errno is EINTR, loop and try again.
+                    // If the window size has changed, push event onto the queue.
+                    if SIGWINCH_STATUS.load(Ordering::SeqCst) {
+                        self.eventbuffer.push_back(Event::Resize);
+                    }
                     // If a timeout was specified, subtract elapsed time from it.
                     if let Some(orig_tout) = timeout {
                         let new_tout = orig_tout - start_inst.elapsed();
                         timeout_arg = &cvt_duration(new_tout);
                     }
+                    // Loop and call `pselect` again.
                     continue;
                 } else {
                     // Error other than EINTR, return to caller.
@@ -546,6 +518,18 @@ impl Terminal {
         Ok(())
     }
 
+    fn window_size(&self) -> Result<(usize, usize), Error> {
+        let fd = self.tty.as_raw_fd();
+        let mut ws: libc::winsize = unsafe { mem::uninitialized() };
+
+        let res = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
+        if res != 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok((ws.ws_col as usize, ws.ws_row as usize))
+        }
+    }
+
     fn set_termios(&self) -> Result<(), Error> {
         let fd = self.tty.as_raw_fd();
         let mut tios = self.orig_tios.clone();
@@ -566,18 +550,6 @@ impl Terminal {
             Err(Error::last_os_error())
         } else {
             Ok(())
-        }
-    }
-
-    fn window_size(&self) -> Result<(usize, usize), Error> {
-        let fd = self.tty.as_raw_fd();
-        let mut ws: libc::winsize = unsafe { mem::uninitialized() };
-
-        let res = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
-        if res != 0 {
-            Err(Error::last_os_error())
-        } else {
-            Ok((ws.ws_col as usize, ws.ws_row as usize))
         }
     }
 

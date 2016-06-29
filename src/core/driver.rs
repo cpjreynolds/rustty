@@ -55,6 +55,13 @@ const SETBG: &'static str = "setab";
 // to fail.
 //
 // TODO: Optional functionality testing.
+//
+// Optional capabilities:
+//  UNDERLINE
+//  BOLD
+//  REVERSE
+//  SETFG
+//  SETBG
 const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
                                                 EXIT_CA,
                                                 SHOW_CURSOR,

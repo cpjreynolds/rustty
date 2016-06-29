@@ -1,13 +1,13 @@
 use std::ops::{Index, IndexMut, Deref, DerefMut};
 use std::cmp;
 
-/// An array of `Cell`s that represents a terminal display.
-///
-/// A `CellBuffer` is a two-dimensional array of `Cell`s, each pair of indices correspond to a
-/// single point on the underlying terminal.
-///
-/// The first index, `Cellbuffer[y]`, corresponds to a row, and thus the y-axis. The second
-/// index, `Cellbuffer[y][x]`, corresponds to a column within a row and thus the x-axis.
+// An array of `Cell`s that represents a terminal display.
+//
+// A `CellBuffer` is a two-dimensional array of `Cell`s, each pair of indices correspond to a
+// single point on the underlying terminal.
+//
+// The first index, `Cellbuffer[y]`, corresponds to a row, and thus the y-axis. The second
+// index, `Cellbuffer[y][x]`, corresponds to a column within a row and thus the x-axis.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellBuffer {
     cols: usize,
@@ -16,7 +16,7 @@ pub struct CellBuffer {
 }
 
 impl CellBuffer {
-    /// Constructs a new `CellBuffer` with the given number of columns and rows.
+    // Constructs a new `CellBuffer` with the given number of columns and rows.
     pub fn new(cols: usize, rows: usize) -> CellBuffer {
         let len = cols * rows;
         let mut buf = Vec::with_capacity(len);
@@ -28,6 +28,7 @@ impl CellBuffer {
         }
     }
 
+    // Returns a reference to the `Cell` at (x, y) if the specified coordinates are valid.
     pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
         if x < self.cols && y < self.rows {
             let offset = (self.cols * y) + x;
@@ -37,6 +38,7 @@ impl CellBuffer {
         }
     }
 
+    // Returns a mutable reference to the `Cell` at (x, y) if the specified coordinates are valid.
     pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
         if x < self.cols && y < self.rows {
             let offset = (self.cols * y) + x;
@@ -46,14 +48,16 @@ impl CellBuffer {
         }
     }
 
+    // Clears the buffer with the specified `Cell`.
     pub fn clear(&mut self, blank: Cell) {
         for cell in &mut self.buf {
             *cell = blank;
         }
     }
 
-    /// Resizes `CellBuffer` to the given number of rows and columns, using the given `Cell` as
-    /// a blank.
+    // Resizes `CellBuffer` to the given number of rows and columns, using the given `Cell` as
+    // a blank.
+    //
     // TODO: test this.
     pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
         let mut newbuf: Vec<Cell> = Vec::with_capacity(newcols * newrows);
@@ -100,15 +104,13 @@ impl DerefMut for CellBuffer {
 impl Index<(usize, usize)> for CellBuffer {
     type Output = Cell;
 
-    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
-        let (x, y) = index;
+    fn index<'a>(&'a self, (x, y): (usize, usize)) -> &'a Cell {
         self.get(x, y).expect("index out of bounds")
     }
 }
 
 impl IndexMut<(usize, usize)> for CellBuffer {
-    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
-        let (x, y) = index;
+    fn index_mut<'a>(&'a mut self, (x, y): (usize, usize)) -> &'a mut Cell {
         self.get_mut(x, y).expect("index out of bounds")
     }
 }
@@ -363,4 +365,13 @@ pub enum Attr {
     BoldReverse = 0b101,
     UnderlineReverse = 0b110,
     BoldReverseUnderline = 0b111,
+}
+
+bitflags! {
+    pub flags Attr: u8 {
+        DEFAULT = 0b000;
+        BOLD = 0b001;
+        UNDERLINE = 0b010;
+        REVERSE = 0b100;
+    }
 }
