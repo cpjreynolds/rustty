@@ -22,5 +22,8 @@ extern crate bitflags;
 mod core;
 
 pub use core::terminal::Terminal;
-pub use core::cellbuffer::{Cell, Color, Attr};
+pub use core::cell::{Cell, Color, Attr};
 pub use core::input::Event;
+pub use core::panel::{Draw, Panel};
+pub use core::symbol;
+pub use core::border::Border;

@@ -1,23 +1,23 @@
-use std::ops::{Index, IndexMut, Deref, DerefMut};
 use std::io::prelude::*;
-use std::io::{Error, ErrorKind};
-use std::fs::OpenOptions;
-use std::fs::File;
+use std::io::{Error, ErrorKind, Result};
 use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
-use std::collections::VecDeque;
+use std::collections::{VecDeque, vec_deque};
 use std::thread;
 use std::time::{Duration, Instant};
 use std::ptr;
 use std::mem;
+use std::iter::Iterator;
 
 use libc;
 
 use gag::BufferRedirect;
 
-use core::cellbuffer::{CellBuffer, Cell, Color, Attr};
+use core::cell::{Cell, Color, BOLD, UNDERLINE, REVERSE};
+use core::panel::{Panel, Draw};
 use core::input::Event;
 use core::driver::{DevFn, Driver};
+use core::tty::{self, RawTerminal, ControlChar};
 
 // Set to true by the sigwinch handler. Reset to false when buffers are resized.
 static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
@@ -39,10 +39,10 @@ type EventBuffer = VecDeque<Event>;
 /// # Examples
 ///
 /// ```no_run
-/// # use std::io::Error;
+/// # use std::io::{Error, Result};
 /// use rustty::{Terminal, Cell, Color};
 ///
-/// # fn foo() -> Result<(), Error> {
+/// # fn foo() -> Result<()> {
 ///
 /// // Construct a new Terminal.
 /// let mut term = try!(Terminal::new());
@@ -62,26 +62,20 @@ type EventBuffer = VecDeque<Event>;
 /// # }
 /// ```
 pub struct Terminal {
-    // Underlying terminal file.
-    tty: File,
-    // Number of columns in the terminal window.
-    cols: usize,
-    // Number of rows in the terminal window.
-    rows: usize,
+    // Raw terminal interface.
+    tty: RawTerminal,
     // Terminal driver (terminfo).
     driver: Driver,
     // Internal backbuffer.
-    backbuffer: CellBuffer,
+    backbuffer: Panel,
     // Internal frontbuffer.
-    frontbuffer: CellBuffer,
+    frontbuffer: Panel,
     // Internal output buffer.
     outbuffer: OutBuffer,
     // Event buffer.
     eventbuffer: EventBuffer,
     // Stderr handle to dump on panics.
     stderr_handle: BufferRedirect,
-    // Original termios structure.
-    orig_tios: libc::termios,
 }
 
 impl Terminal {
@@ -90,17 +84,17 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::io::Error;
+    /// # use std::io::{Error, Result};
     /// use rustty::Terminal;
     ///
-    /// # fn foo() -> Result<(), Error> {
+    /// # fn foo() -> Result<()> {
     ///
     /// let mut term = try!(Terminal::new());
     ///
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new() -> Result<Terminal, Error> {
+    pub fn new() -> Result<Terminal> {
         // Make sure there is only ever one instance.
         if RUSTTY_STATUS.compare_and_swap(false, true, Ordering::SeqCst) {
             return Err(Error::new(ErrorKind::AlreadyExists, "terminal already initialized"));
@@ -110,11 +104,8 @@ impl Terminal {
         // If this returns an error then the terminal is not supported.
         let driver = try!(Driver::new());
 
-        // Open the terminal file for the controlling process.
-        let tty = try!(OpenOptions::new()
-            .write(true)
-            .read(true)
-            .open("/dev/tty"));
+        // Open terminal interface.
+        let tty = try!(RawTerminal::new());
 
         // Set up the signal handler for SIGWINCH, which will notify us when the window size has
         // changed; it does this by atomically setting SIGWINCH_STATUS to 'true'.
@@ -126,28 +117,29 @@ impl Terminal {
             return Err(Error::last_os_error());
         }
 
-        // Create and initialize the original termios struct, so we can reset it on drop.
-        let mut orig_tios = unsafe { mem::uninitialized() };
-        let res = unsafe { libc::tcgetattr(tty.as_raw_fd(), &mut orig_tios) };
-        if res != 0 {
-            return Err(Error::last_os_error());
-        }
-
         let mut terminal = Terminal {
             tty: tty,
-            cols: 0,
-            rows: 0,
             driver: driver,
-            backbuffer: CellBuffer::new(0, 0),
-            frontbuffer: CellBuffer::new(0, 0),
+            backbuffer: Panel::new(),
+            frontbuffer: Panel::new(),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
             eventbuffer: EventBuffer::with_capacity(128),
             stderr_handle: BufferRedirect::stderr().unwrap(),
-            orig_tios: orig_tios,
         };
 
-        // Set the termios options we need.
-        try!(terminal.set_termios());
+        // set `termios` options.
+        let mut tios = terminal.tty.termios();
+        tios.iflags_mut()
+            .remove(tty::IGNBRK | tty::BRKINT | tty::PARMRK | tty::ISTRIP | tty::INLCR |
+                    tty::IGNCR | tty::ICRNL | tty::IXON);
+        tios.oflags_mut().remove(tty::OPOST);
+        tios.lflags_mut()
+            .remove(tty::ECHO | tty::ECHONL | tty::ICANON | tty::ISIG | tty::IEXTEN);
+        tios.cflags_mut().remove(tty::CSIZE | tty::PARENB);
+        tios.cflags_mut().insert(tty::CS8);
+        tios.set_cc(ControlChar::VMIN, 0);
+        tios.set_cc(ControlChar::VTIME, 0);
+        try!(terminal.tty.set_termios(tios));
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
         try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::EnterCa)));
@@ -167,10 +159,10 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::io::Error;
+    /// # use std::io::{Error, Result};
     /// use rustty::Terminal;
     ///
-    /// # fn foo() -> Result<(), Error> {
+    /// # fn foo() -> Result<()> {
     ///
     /// let mut term = try!(Terminal::new());
     /// try!(term.refresh());
@@ -178,7 +170,7 @@ impl Terminal {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn refresh(&mut self) -> Result<(), Error> {
+    pub fn refresh(&mut self) -> Result<()> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -206,10 +198,10 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::io::Error;
+    /// # use std::io::{Error, Result};
     /// use rustty::Terminal;
     ///
-    /// # fn foo() -> Result<(), Error> {
+    /// # fn foo() -> Result<()> {
     ///
     /// let mut term = try!(Terminal::new());
     /// let width = term.cols();
@@ -218,7 +210,7 @@ impl Terminal {
     /// # }
     /// ```
     pub fn cols(&self) -> usize {
-        self.cols
+        self.backbuffer.cols()
     }
 
     /// Returns the height of the terminal in rows.
@@ -226,10 +218,10 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::io::Error;
+    /// # use std::io::{Error, Result};
     /// use rustty::Terminal;
     ///
-    /// # fn foo() -> Result<(), Error> {
+    /// # fn foo() -> Result<()> {
     ///
     /// let mut term = try!(Terminal::new());
     /// let height = term.rows();
@@ -238,15 +230,15 @@ impl Terminal {
     /// # }
     /// ```
     pub fn rows(&self) -> usize {
-        self.rows
+        self.backbuffer.rows()
     }
 
-    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
-        self.backbuffer.get(x, y)
+    pub fn panel(&self) -> &Panel {
+        &self.backbuffer
     }
 
-    pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
-        self.backbuffer.get_mut(x, y)
+    pub fn panel_mut(&mut self) -> &mut Panel {
+        &mut self.backbuffer
     }
 
     /// Clears the internal backbuffer using the given `Cell` as a blank.
@@ -254,10 +246,10 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::io::Error;
+    /// # use std::io::{Error, Result};
     /// use rustty::{Terminal, Cell};
     ///
-    /// # fn foo() -> Result<(), Error> {
+    /// # fn foo() -> Result<()> {
     ///
     /// let mut cell1 = Cell::default();
     /// cell1.set_ch('x');
@@ -276,7 +268,7 @@ impl Terminal {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn clear(&mut self, cell: Cell) -> Result<(), Error> {
+    pub fn clear(&mut self, cell: Cell) -> Result<()> {
         // Check whether the window has been resized; if it has then update and resize the buffers.
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
@@ -300,10 +292,10 @@ impl Terminal {
     /// # Examples
     ///
     /// ```no_run
-    /// # use std::io::Error;
+    /// # use std::io::{Error, Result};
     /// use rustty::Terminal;
     ///
-    /// # fn foo() -> Result<(), Error> {
+    /// # fn foo() -> Result<()> {
     ///
     /// let mut term = try!(Terminal::new());
     ///
@@ -314,58 +306,30 @@ impl Terminal {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>, Error> {
+    pub fn try_resize(&mut self) -> Result<Option<(usize, usize)>> {
         if SIGWINCH_STATUS.compare_and_swap(true, false, Ordering::SeqCst) {
             try!(self.resize());
-            return Ok(Some((self.cols, self.rows)));
+            return Ok(Some((self.cols(), self.rows())));
         }
         Ok(None)
     }
 
-    /// Gets an event from the event stream, waiting at most the value specified in `timeout`.
-    ///
-    /// Specifying a `timeout` of `None` causes `get_event()` to block indefinitely, while
-    /// specifying a `timeout` of zero causes `get_event()` to return immediately.
-    ///
-    /// Returns `Some(Event)` if an event was received within the specified timeout, or None
-    /// otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use std::io::Error;
-    /// use rustty::{Terminal, Event};
-    /// use std::time::Duration;
-    ///
-    /// # fn foo() -> Result<(), Error> {
-    ///
-    /// let mut term = try!(Terminal::new());
-    ///
-    /// let evt = try!(term.get_event(Some(Duration::from_secs(1))));
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn get_event(&mut self, timeout: Option<Duration>) -> Result<Option<Event>, Error> {
-        // Check if the event buffer is empty.
-        if self.eventbuffer.is_empty() {
-            // Event buffer is empty, lets poll the terminal for events.
-            let nevts = try!(self.read_events(timeout));
-            if nevts == 0 {
-                // No events from the terminal either. Return none.
-                Ok(None)
-            } else {
-                // Got at least one event from the terminal. Pop from the front of the event queue.
-                Ok(self.eventbuffer.pop_front())
-            }
-        } else {
-            // There is at least one event in the buffer already. Pop and return it.
-            Ok(self.eventbuffer.pop_front())
-        }
+    pub fn poll_events<'a>(&'a mut self) -> Result<PollEvents<'a>> {
+        // Poll for new events.
+        try!(self.read_events(None));
+        // Return a draining iterator over the eventbuffer.
+        Ok(PollEvents(self.eventbuffer.drain(..)))
+    }
+
+    pub fn wait_events<'a>(&'a mut self, timeout: Duration) -> Result<WaitEvents<'a>> {
+        // Wait for new events.
+        try!(self.read_events(Some(timeout)));
+        // Return a draining iterator over the eventbuffer.
+        Ok(WaitEvents(self.eventbuffer.drain(..)))
     }
 
     // Sends the cursor to the specified position.
-    fn send_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
+    fn send_cursor(&mut self, x: usize, y: usize) -> Result<()> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(x, y))));
         Ok(())
     }
@@ -373,14 +337,14 @@ impl Terminal {
     // Sets the cursor to the specified coordinates and then writes the specified character.
     //
     // At the moment, wide characters are going to make things go very, very wrong...probably.
-    fn send_char(&mut self, x: usize, y: usize, ch: char) -> Result<(), Error> {
+    fn send_char(&mut self, x: usize, y: usize, ch: char) -> Result<()> {
         try!(self.send_cursor(x, y));
         try!(write!(self.outbuffer, "{}", ch));
         Ok(())
     }
 
     // Clears the terminal with the default style.
-    fn send_clear(&mut self) -> Result<(), Error> {
+    fn send_clear(&mut self) -> Result<()> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
         try!(self.flush());
@@ -388,14 +352,17 @@ impl Terminal {
     }
 
     // Sends the style of the specified cell.
-    fn send_style(&mut self, cell: Cell) -> Result<(), Error> {
+    fn send_style(&mut self, cell: Cell) -> Result<()> {
         try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
 
-        match cell.attrs() {
-            Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold))),
-            Attr::Underline => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline))),
-            Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
-            _ => {}
+        if cell.attrs().contains(BOLD) {
+            try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold)));
+        }
+        if cell.attrs().contains(UNDERLINE) {
+            try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline)));
+        }
+        if cell.attrs().contains(REVERSE) {
+            try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse)));
         }
 
         try!(self.write_sgr(cell.fg(), cell.bg()));
@@ -403,7 +370,7 @@ impl Terminal {
     }
 
     // Writes colors to the outbuffer.
-    fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<(), Error> {
+    fn write_sgr(&mut self, fgcol: Color, bgcol: Color) -> Result<()> {
         match fgcol {
             Color::Default => {}
             fgc @ _ => {
@@ -419,23 +386,21 @@ impl Terminal {
         Ok(())
     }
 
-    /// Updates the size of the Terminal object to reflect that of the underlying terminal.
-    fn resize(&mut self) -> Result<(), Error> {
-        let (cols, rows) = try!(self.window_size());
-        self.cols = cols;
-        self.rows = rows;
-        self.backbuffer.resize(self.cols, self.rows, Cell::default());
-        self.frontbuffer.resize(self.cols, self.rows, Cell::default());
+    // Updates the size of the Terminal object to reflect that of the underlying terminal.
+    fn resize(&mut self) -> Result<()> {
+        let (cols, rows) = try!(self.tty.window_size());
+        self.backbuffer.resize(cols, rows, Cell::default());
+        self.frontbuffer.resize(cols, rows, Cell::default());
         self.frontbuffer.clear(Cell::default());
         try!(self.send_clear());
         Ok(())
     }
 
-    /// Attempts to read any available events from the terminal into the event buffer, waiting for
-    /// the specified timeout for input to become available.
-    ///
-    /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, timeout: Option<Duration>) -> Result<usize, Error> {
+    // Attempts to read any available events from the terminal into the event buffer, waiting for
+    // the specified timeout for input to become available.
+    //
+    // Returns the number of events read into the buffer.
+    fn read_events(&mut self, timeout: Option<Duration>) -> Result<usize> {
         let nevts;
         let mut timeout_arg = if let Some(tout) = timeout {
             &cvt_duration(tout)
@@ -507,7 +472,7 @@ impl Terminal {
         }
     }
 
-    fn flush(&mut self) -> Result<(), Error> {
+    fn flush(&mut self) -> Result<()> {
         try!(self.tty.write_all(&self.outbuffer));
         self.outbuffer.clear();
         if thread::panicking() {
@@ -516,79 +481,6 @@ impl Terminal {
             print!("{}", error);
         }
         Ok(())
-    }
-
-    fn window_size(&self) -> Result<(usize, usize), Error> {
-        let fd = self.tty.as_raw_fd();
-        let mut ws: libc::winsize = unsafe { mem::uninitialized() };
-
-        let res = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
-        if res != 0 {
-            Err(Error::last_os_error())
-        } else {
-            Ok((ws.ws_col as usize, ws.ws_row as usize))
-        }
-    }
-
-    fn set_termios(&self) -> Result<(), Error> {
-        let fd = self.tty.as_raw_fd();
-        let mut tios = self.orig_tios.clone();
-
-        tios.c_iflag &= !(libc::IGNBRK | libc::BRKINT | libc::PARMRK | libc::ISTRIP |
-                          libc::INLCR | libc::IGNCR | libc::ICRNL |
-                          libc::IXON);
-        tios.c_oflag &= !libc::OPOST;
-        tios.c_lflag &= !(libc::ECHO | libc::ECHONL | libc::ICANON | libc::ISIG | libc::IEXTEN);
-        tios.c_cflag &= !(libc::CSIZE | libc::PARENB);
-        tios.c_cflag |= libc::CS8;
-        tios.c_cc[libc::VMIN] = 0;
-        tios.c_cc[libc::VTIME] = 0;
-
-        let res = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &tios) };
-
-        if res != 0 {
-            Err(Error::last_os_error())
-        } else {
-            Ok(())
-        }
-    }
-
-    fn reset_termios(&self) -> Result<(), Error> {
-        let fd = self.tty.as_raw_fd();
-        let res = unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &self.orig_tios) };
-        if res != 0 {
-            Err(Error::last_os_error())
-        } else {
-            Ok(())
-        }
-    }
-}
-
-impl Deref for Terminal {
-    type Target = [Cell];
-
-    fn deref<'a>(&'a self) -> &'a [Cell] {
-        &self.backbuffer
-    }
-}
-
-impl DerefMut for Terminal {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut [Cell] {
-        &mut self.backbuffer
-    }
-}
-
-impl Index<(usize, usize)> for Terminal {
-    type Output = Cell;
-
-    fn index<'a>(&'a self, index: (usize, usize)) -> &'a Cell {
-        &self.backbuffer[index]
-    }
-}
-
-impl IndexMut<(usize, usize)> for Terminal {
-    fn index_mut<'a>(&'a mut self, index: (usize, usize)) -> &'a mut Cell {
-        &mut self.backbuffer[index]
     }
 }
 
@@ -599,7 +491,6 @@ impl Drop for Terminal {
         self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
         self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
         self.flush().unwrap();
-        self.reset_termios().unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);
         RUSTTY_STATUS.store(false, Ordering::SeqCst);
     }
@@ -615,5 +506,25 @@ fn cvt_duration(dur: Duration) -> libc::timespec {
     libc::timespec {
         tv_sec: dur.as_secs() as libc::time_t,
         tv_nsec: dur.subsec_nanos() as libc::c_long,
+    }
+}
+
+pub struct PollEvents<'a>(vec_deque::Drain<'a, Event>);
+
+impl<'a> Iterator for PollEvents<'a> {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+pub struct WaitEvents<'a>(vec_deque::Drain<'a, Event>);
+
+impl<'a> Iterator for WaitEvents<'a> {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
     }
 }

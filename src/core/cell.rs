@@ -1,124 +1,7 @@
-use std::ops::{Index, IndexMut, Deref, DerefMut};
-use std::cmp;
-
-// An array of `Cell`s that represents a terminal display.
-//
-// A `CellBuffer` is a two-dimensional array of `Cell`s, each pair of indices correspond to a
-// single point on the underlying terminal.
-//
-// The first index, `Cellbuffer[y]`, corresponds to a row, and thus the y-axis. The second
-// index, `Cellbuffer[y][x]`, corresponds to a column within a row and thus the x-axis.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CellBuffer {
-    cols: usize,
-    rows: usize,
-    buf: Vec<Cell>,
-}
-
-impl CellBuffer {
-    // Constructs a new `CellBuffer` with the given number of columns and rows.
-    pub fn new(cols: usize, rows: usize) -> CellBuffer {
-        let len = cols * rows;
-        let mut buf = Vec::with_capacity(len);
-        buf.resize(len, Cell::default());
-        CellBuffer {
-            cols: cols,
-            rows: rows,
-            buf: buf,
-        }
-    }
-
-    // Returns a reference to the `Cell` at (x, y) if the specified coordinates are valid.
-    pub fn get<'a>(&'a self, x: usize, y: usize) -> Option<&'a Cell> {
-        if x < self.cols && y < self.rows {
-            let offset = (self.cols * y) + x;
-            self.buf.get(offset)
-        } else {
-            None
-        }
-    }
-
-    // Returns a mutable reference to the `Cell` at (x, y) if the specified coordinates are valid.
-    pub fn get_mut<'a>(&'a mut self, x: usize, y: usize) -> Option<&'a mut Cell> {
-        if x < self.cols && y < self.rows {
-            let offset = (self.cols * y) + x;
-            self.buf.get_mut(offset)
-        } else {
-            None
-        }
-    }
-
-    // Clears the buffer with the specified `Cell`.
-    pub fn clear(&mut self, blank: Cell) {
-        for cell in &mut self.buf {
-            *cell = blank;
-        }
-    }
-
-    // Resizes `CellBuffer` to the given number of rows and columns, using the given `Cell` as
-    // a blank.
-    //
-    // TODO: test this.
-    pub fn resize(&mut self, newcols: usize, newrows: usize, blank: Cell) {
-        let mut newbuf: Vec<Cell> = Vec::with_capacity(newcols * newrows);
-
-        let oldrows = self.rows;
-        let oldcols = self.cols;
-        let minrows = cmp::min(oldrows, newrows);
-        let mincols = cmp::min(oldcols, newcols);
-        let x_ext_len = newcols.saturating_sub(oldcols);
-        let y_ext_len = newrows.saturating_sub(oldrows) * newcols;
-
-        for y in 0..minrows {
-            let copy_start = oldcols * y;
-            let copy_end = (oldcols * y) + mincols;
-
-            newbuf.extend_from_slice(&self.buf[copy_start..copy_end]);
-            let curlen = newbuf.len();
-            newbuf.resize(curlen + x_ext_len, blank);
-        }
-
-        let curlen = newbuf.len();
-        newbuf.resize(curlen + y_ext_len, blank);
-
-        self.cols = newcols;
-        self.rows = newrows;
-        self.buf = newbuf;
-    }
-}
-
-impl Deref for CellBuffer {
-    type Target = [Cell];
-
-    fn deref<'a>(&'a self) -> &'a [Cell] {
-        &self.buf
-    }
-}
-
-impl DerefMut for CellBuffer {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut [Cell] {
-        &mut self.buf
-    }
-}
-
-impl Index<(usize, usize)> for CellBuffer {
-    type Output = Cell;
-
-    fn index<'a>(&'a self, (x, y): (usize, usize)) -> &'a Cell {
-        self.get(x, y).expect("index out of bounds")
-    }
-}
-
-impl IndexMut<(usize, usize)> for CellBuffer {
-    fn index_mut<'a>(&'a mut self, (x, y): (usize, usize)) -> &'a mut Cell {
-        self.get_mut(x, y).expect("index out of bounds")
-    }
-}
-
 /// A single point on a terminal display.
 ///
 /// A `Cell` contains a character and style.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Cell {
     ch: char,
     fg: Color,
@@ -134,11 +17,11 @@ impl Cell {
     /// ```
     /// use rustty::{Cell, Color, Attr};
     ///
-    /// let cell = Cell::new('x', Color::Default, Color::Green, Attr::Default);
+    /// let cell = Cell::new('x', Color::Default, Color::Green, Attr::empty());
     /// assert_eq!(cell.ch(), 'x');
     /// assert_eq!(cell.fg(), Color::Default);
     /// assert_eq!(cell.bg(), Color::Green);
-    /// assert_eq!(cell.attrs(), Attr::Default);
+    /// assert_eq!(cell.attrs(), Attr::empty());
     /// ```
     pub fn new(ch: char, fg: Color, bg: Color, attrs: Attr) -> Cell {
         Cell {
@@ -159,7 +42,7 @@ impl Cell {
     /// let cell = Cell::default();
     /// assert_eq!(cell.ch(), ' ');
     ///
-    /// let cell = Cell::new('x', Color::Default, Color::Default, Attr::Default);
+    /// let cell = Cell::new('x', Color::Default, Color::Default, Attr::empty());
     /// assert_eq!(cell.ch(), 'x');
     /// ```
     pub fn ch(&self) -> char {
@@ -191,7 +74,7 @@ impl Cell {
     /// ```
     /// use rustty::{Cell, Color, Attr};
     ///
-    /// let cell = Cell::new(' ', Color::Blue, Color::Default, Attr::Default);
+    /// let cell = Cell::new(' ', Color::Blue, Color::Default, Attr::empty());
     /// assert_eq!(cell.fg(), Color::Blue);
     /// ```
     pub fn fg(&self) -> Color {
@@ -223,7 +106,7 @@ impl Cell {
     /// ```
     /// use rustty::{Cell, Color, Attr};
     ///
-    /// let mut cell = Cell::new(' ', Color::Default, Color::Green, Attr::Default);
+    /// let mut cell = Cell::new(' ', Color::Default, Color::Green, Attr::empty());
     /// assert_eq!(cell.bg(), Color::Green);
     /// ```
     pub fn bg(&self) -> Color {
@@ -272,7 +155,7 @@ impl Default for Cell {
     /// assert_eq!(cell.bg(), Color::Default);
     /// ```
     fn default() -> Cell {
-        Cell::new(' ', Color::Default, Color::Default, Attr::Default)
+        Cell::new(' ', Color::Default, Color::Default, Attr::empty())
     }
 }
 
@@ -303,7 +186,7 @@ impl Default for Cell {
 /// // Basic colors are also 8-bit colors (but not vice-versa).
 /// assert_eq!(red.as_byte(), fancy.as_byte())
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Color {
     Black,
     Red,
@@ -335,43 +218,41 @@ impl Color {
     }
 }
 
-/// The attributes of a `Cell`.
-///
-/// `Attr` enumerates all combinations of attributes a given style may have.
-///
-/// `Attr::Default` represents no attribute.
-///
-/// # Examples
-///
-/// ```
-/// use rustty::Attr;
-///
-/// // Default attribute.
-/// let def = Attr::Default;
-///
-/// // Base attribute.
-/// let base = Attr::Bold;
-///
-/// // Combination.
-/// let comb = Attr::UnderlineReverse;
-/// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Attr {
-    Default = 0b000,
-    Bold = 0b001,
-    Underline = 0b010,
-    BoldUnderline = 0b011,
-    Reverse = 0b100,
-    BoldReverse = 0b101,
-    UnderlineReverse = 0b110,
-    BoldReverseUnderline = 0b111,
+bitflags! {
+    /// The attributes of a `Cell`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rustty::Attr;
+    ///
+    /// // No attributes.
+    /// let def = Attr::empty();
+    ///
+    /// // Single attribute.
+    /// let bold = Attr::bold();
+    ///
+    /// // Combination.
+    /// let comb = Attr::reverse() | Attr::underline();
+    /// ```
+    #[derive(Default)]
+    pub flags Attr: u8 {
+        const BOLD = 0b001,
+        const UNDERLINE = 0b010,
+        const REVERSE = 0b100,
+    }
 }
 
-bitflags! {
-    pub flags Attr: u8 {
-        DEFAULT = 0b000;
-        BOLD = 0b001;
-        UNDERLINE = 0b010;
-        REVERSE = 0b100;
+impl Attr {
+    pub fn bold() -> Attr {
+        BOLD
+    }
+
+    pub fn underline() -> Attr {
+        UNDERLINE
+    }
+
+    pub fn reverse() -> Attr {
+        REVERSE
     }
 }

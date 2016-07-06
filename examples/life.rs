@@ -27,9 +27,11 @@ fn execute() -> Result<(), Error> {
     let mut terminal = try!(Terminal::new());
     let mut rng = rand::thread_rng();
 
-    for cell in &mut *terminal {
-        if rng.gen_weighted_bool(BOOL_WEIGHT) {
-            cell.set_ch('x');
+    for y in 0..terminal.rows() {
+        for x in 0..terminal.cols() {
+            if rng.gen_weighted_bool(BOOL_WEIGHT) {
+                terminal.get_mut(x, y).unwrap().set_ch('x');
+            }
         }
     }
 
@@ -37,7 +39,13 @@ fn execute() -> Result<(), Error> {
     try!(terminal.refresh());
 
     'main: loop {
-        while let Some(Event::Key(ch)) = try!(terminal.get_event(None)) {
+        for ch in try!(terminal.poll_events()).filter_map(|ev| {
+            if let Event::Key(c) = ev {
+                Some(c)
+            } else {
+                None
+            }
+        }) {
             match ch {
                 'q' => {
                     break 'main;
@@ -56,7 +64,7 @@ fn execute() -> Result<(), Error> {
                 let mut sum = 0;
 
                 for (nx, ny) in idxs(terminal.rows(), terminal.cols(), x, y) {
-                    if terminal[(nx, ny)].ch() == 'x' {
+                    if terminal.get(nx, ny).unwrap().ch() == 'x' {
                         sum += 1;
                     }
                 }
@@ -65,12 +73,15 @@ fn execute() -> Result<(), Error> {
             }
         }
 
-        for (i, cell) in terminal.iter_mut().enumerate() {
-            let sum = sums[i];
-            if sum == 3 {
-                cell.set_ch('x');
-            } else if sum != 4 {
-                cell.set_ch(' ');
+        for y in 0..terminal.rows() {
+            for x in 0..terminal.cols() {
+                let i = y * terminal.cols() + x;
+                let sum = sums[i];
+                if sum == 3 {
+                    terminal.get_mut(x, y).unwrap().set_ch('x');
+                } else if sum != 4 {
+                    terminal.get_mut(x, y).unwrap().set_ch(' ');
+                }
             }
         }
 

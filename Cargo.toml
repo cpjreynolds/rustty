@@ -14,7 +14,7 @@ keywords = ["terminal", "ui", "tui", "console", "tty"]
 term = "0.4"
 libc = "0.2"
 gag = "0.1"
-bitflags = "*"
+bitflags = "0.7"
 
 [dev-dependencies]
 rand = "0.3"
