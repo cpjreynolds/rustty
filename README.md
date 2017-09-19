@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/cpjreynolds/rustty.svg?branch=master)](https://travis-ci.org/cpjreynolds/rustty)
 [![Crates.io](https://img.shields.io/crates/v/rustty.svg)](https://crates.io/crates/rustty)
-[![Crates.io](https://img.shields.io/crates/l/rustty.svg)](https://raw.githubusercontent.com/cpjreynolds/rustty/master/LICENSE)
+[![License](https://img.shields.io/github/license/rustty.svg)](https://raw.githubusercontent.com/cpjreynolds/rustty/master/LICENSE)
 
 - [API Documentation][1]
 - [Intro](#intro)
@@ -89,4 +89,4 @@ documentation][1].
 If you encounter any issues with the library, have questions or suggestions,
 please [submit an issue](https://github.com/cpjreynolds/rustty/issues/new).
 
-[1]: http://cpjreynolds.github.io/rustty
+[1]: https://docs.rs/rustty
