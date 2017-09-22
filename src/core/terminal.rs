@@ -192,6 +192,9 @@ impl Terminal {
         // Invalidate the last cursor position.
         self.cursor.invalidate_last_pos();
 
+        // Prevent stale position moving into last_pos
+        self.cursor.set_pos(None);
+
         for y in 0..self.rows() {
             for x in 0..self.cols() {
                 if self.frontbuffer[(x, y)] == self.backbuffer[(x, y)] {
