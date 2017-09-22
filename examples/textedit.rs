@@ -27,7 +27,7 @@ fn main() {
     term.swap_buffers().unwrap();
     loop {
         let evt = term.get_event(Some(Duration::from_millis(100))).unwrap();
-        if let Some(Event::Key(ch)) = evt {
+        if let Some(Event::Char(ch)) = evt {
             match ch {
                 '`' => {
                     break;

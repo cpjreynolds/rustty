@@ -2,40 +2,49 @@
 #![allow(dead_code)]
 
 use std::io::{Error, ErrorKind};
+use std::collections::HashMap;
+use std::str;
 
 use term::terminfo::TermInfo;
 use term::terminfo::parm;
 use term::terminfo::parm::{Param, Variables};
 
-// Terminfo keys. These are arrays because the terminfo database from the `term` crate sometimes
-// uses the variable name and othertimes the capname.
-//
-// Arrays are formatted as ["variable_name", "cap_name"].
-const KEY_F1: &'static [&'static str] = &["key_f1", "kf1"];
-const KEY_F2: &'static [&'static str] = &["key_f2", "kf2"];
-const KEY_F3: &'static [&'static str] = &["key_f3", "kf3"];
-const KEY_F4: &'static [&'static str] = &["key_f4", "kf4"];
-const KEY_F5: &'static [&'static str] = &["key_f5", "kf5"];
-const KEY_F6: &'static [&'static str] = &["key_f6", "kf6"];
-const KEY_F7: &'static [&'static str] = &["key_f7", "kf7"];
-const KEY_F8: &'static [&'static str] = &["key_f8", "kf8"];
-const KEY_F9: &'static [&'static str] = &["key_f9", "kf9"];
-const KEY_F10: &'static [&'static str] = &["key_f10", "kf10"];
-const KEY_F11: &'static [&'static str] = &["key_f11", "kf11"];
-const KEY_F12: &'static [&'static str] = &["key_f12", "kf12"];
-const KEY_UP: &'static [&'static str] = &["key_up", "kcuu1"];
-const KEY_DOWN: &'static [&'static str] = &["key_down", "kcud1"];
-const KEY_LEFT: &'static [&'static str] = &["key_left", "kcub1"];
-const KEY_RIGHT: &'static [&'static str] = &["key_right", "kcuf1"];
+use core::input::Event;
 
-// Array of terminal keys.
-const KEYS: &'static [&'static [&'static str]] = &[KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6,
-                                                   KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11,
-                                                   KEY_F12, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT];
+// Array of tuples of events and their corresponding terminal keys.
+// Tuples are of the form (event, variable_name, tuple_name).
+// Both the variable_name and cap_name are given since terminfo
+// uses a combination of variable and cap names.
+const KEYS: &'static [(Event, &'static str, &'static str)] = &[
+    (Event::Function(1), "key_f1", "kf1"),
+    (Event::Function(2), "key_f2", "kf2"),
+    (Event::Function(3), "key_f3", "kf3"),
+    (Event::Function(4), "key_f4", "kf4"),
+    (Event::Function(5), "key_f5", "kf5"),
+    (Event::Function(6), "key_f6", "kf6"),
+    (Event::Function(7), "key_f7", "kf7"),
+    (Event::Function(8), "key_f8", "kf8"),
+    (Event::Function(9), "key_f9", "kf9"),
+    (Event::Function(10), "key_f10", "kf10"),
+    (Event::Function(11), "key_f11", "kf11"),
+    (Event::Function(12), "key_f12", "kf12"),
+    (Event::Up, "key_up", "kcuu1"),
+    (Event::Down, "key_down", "kcud1"),
+    (Event::Left, "key_left", "kcub1"),
+    (Event::Right, "key_right", "kcuf1"),
+    (Event::PageUp, "key_ppage", "kpp"),
+    (Event::PageDown, "key_npage", "knp"),
+    (Event::Home, "key_home", "khome"),
+    (Event::End, "key_end", "kend"),
+];
+
+const ESCAPE: char = '\u{1b}';
 
 // String constants correspond to terminfo capnames and are used inside the module for convenience.
 const ENTER_CA: &'static str = "smcup";
 const EXIT_CA: &'static str = "rmcup";
+const ENTER_XMIT: &'static str = "smkx";
+const EXIT_XMIT: &'static str = "rmkx";
 const SHOW_CURSOR: &'static str = "cnorm";
 const HIDE_CURSOR: &'static str = "civis";
 const SET_CURSOR: &'static str = "cup";
@@ -57,6 +66,8 @@ const SETBG: &'static str = "setab";
 // TODO: Optional functionality testing.
 const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
                                                 EXIT_CA,
+                                                ENTER_XMIT,
+                                                EXIT_XMIT,
                                                 SHOW_CURSOR,
                                                 HIDE_CURSOR,
                                                 SET_CURSOR,
@@ -76,6 +87,8 @@ const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
 pub enum DevFn {
     EnterCa,
     ExitCa,
+    EnterXmit,
+    ExitXmit,
     ShowCursor,
     HideCursor,
     SetCursor(usize, usize),
@@ -94,6 +107,8 @@ impl DevFn {
         match *self {
             DevFn::EnterCa => ENTER_CA,
             DevFn::ExitCa => EXIT_CA,
+            DevFn::EnterXmit => ENTER_XMIT,
+            DevFn::ExitXmit => EXIT_XMIT,
             DevFn::ShowCursor => SHOW_CURSOR,
             DevFn::HideCursor => HIDE_CURSOR,
             DevFn::SetCursor(..) => SET_CURSOR,
@@ -111,6 +126,7 @@ impl DevFn {
 
 pub struct Driver {
     tinfo: TermInfo,
+    escape_seq_map: HashMap<String, Event>,
 }
 
 // Validates and returns a reference to the terminfo database.
@@ -145,7 +161,57 @@ impl Driver {
     // If successful, the terminfo database is guaranteed to contain all capabilities we support.
     pub fn new() -> Result<Driver, Error> {
         let tinfo = try!(get_tinfo());
-        Ok(Driver { tinfo: tinfo })
+
+        let mut driver = Driver {
+            tinfo: tinfo,
+            escape_seq_map: HashMap::new(),
+        };
+
+        try!(driver.populate_escape_seq_map());
+
+        Ok(driver)
+    }
+
+    // Populates a hash map mapping escape sequences to events
+    fn populate_escape_seq_map(&mut self) -> Result<(), Error> {
+        let strings = &self.tinfo.strings;
+        for &(event, variable, cap_name) in KEYS {
+            let escape_seq_utf8 = try!(strings.get(variable)
+                .or_else(|| { strings.get(cap_name) })
+                .ok_or(Error::new(ErrorKind::NotFound,
+                    format!("terminal missing escape sequence (variable: {}, cap_name, {})",
+                            variable, cap_name))));
+
+            let escape_seq_str = try!(str::from_utf8(escape_seq_utf8).or(Err(Error::new(ErrorKind::InvalidData,
+                format!("terminal escape sequence for (variable: {}, cap_name{}) is invalid utf8",
+                        variable, cap_name)))));
+
+            self.escape_seq_map.insert(String::from(escape_seq_str), event);
+        }
+
+        Ok(())
+    }
+
+    // Returns an Event corresponding to the contents of 'buf' for the current terminal,
+    // or None if the buffer contents doesn't correspond to a known event.
+    //
+    // If this function returns None, it could indicate that the particular escape sequence
+    // hasn't been implemented by this driver, or that the contents of `buf` is garbled.
+    pub fn get_event(&self, buf: &String) -> Option<Event> {
+        let mut iter = buf.chars();
+        let first = iter.next().expect("got empty string");
+        let rest = iter.as_str();
+
+        if first == ESCAPE {
+            if rest.is_empty() {
+                // Return the literal escape character
+                Some(Event::Char(first))
+            } else {
+                self.escape_seq_map.get(buf).map(|r| *r)
+            }
+        } else {
+            Some(Event::Char(first))
+        }
     }
 
     // Returns the device specific escape sequence for the given `DevFn`.

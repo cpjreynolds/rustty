@@ -5,7 +5,6 @@ use std::fs::OpenOptions;
 use std::fs::File;
 use std::os::unix::io::AsRawFd;
 use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
-use std::collections::VecDeque;
 use std::thread;
 use std::time::Duration;
 use std::ptr;
@@ -30,7 +29,6 @@ static SIGWINCH_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 static RUSTTY_STATUS: AtomicBool = ATOMIC_BOOL_INIT;
 
 type OutBuffer = Vec<u8>;
-type EventBuffer = VecDeque<Event>;
 
 /// A representation of the current terminal window.
 ///
@@ -66,7 +64,6 @@ pub struct Terminal {
     backbuffer: CellBuffer, // Internal backbuffer.
     frontbuffer: CellBuffer, // Internal frontbuffer.
     outbuffer: OutBuffer, // Internal output buffer.
-    eventbuffer: EventBuffer, // Event buffer.
     laststyle: Cell, // Last cell to have its style (fg, bg, attrs) written to the output buffer.
     cursor: Cursor, // Current cursor position.
     stderr_handle: BufferRedirect,
@@ -153,7 +150,6 @@ impl Terminal {
             backbuffer: CellBuffer::new(0, 0, cell),
             frontbuffer: CellBuffer::new(0, 0, cell),
             outbuffer: OutBuffer::with_capacity(32 * 1024),
-            eventbuffer: EventBuffer::with_capacity(128),
             laststyle: cell,
             cursor: Cursor::new(),
             stderr_handle: BufferRedirect::stderr().unwrap(),
@@ -161,6 +157,9 @@ impl Terminal {
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
         try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::EnterCa)));
+
+        // Put the terminal in transmit mode
+        try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::EnterXmit)));
 
         // Hide cursor. Writes the control code to the output buffer.
         try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::HideCursor)));
@@ -458,21 +457,62 @@ impl Terminal {
     ///
     /// let evt = term.get_event(Some(Duration::from_secs(1))).unwrap();
     /// ```
-    pub fn get_event(&mut self, timeout: Option<Duration>) -> Result<Option<Event>, Error> {
-        // Check if the event buffer is empty.
-        if self.eventbuffer.is_empty() {
-            // Event buffer is empty, lets poll the terminal for events.
-            let nevts = try!(self.read_events(timeout));
-            if nevts == 0 {
-                // No events from the terminal either. Return none.
-                Ok(None)
-            } else {
-                // Got at least one event from the terminal. Pop from the front of the event queue.
-                Ok(self.eventbuffer.pop_front())
+    pub fn get_event(&mut self, maybe_timeout: Option<Duration>) -> Result<Option<Event>, Error> {
+        let nevts;
+        let timeout: *mut libc::timeval = match maybe_timeout {
+            None => ptr::null_mut(),
+            Some(timeout) => &mut libc::timeval {
+                tv_sec: timeout.as_secs() as libc::time_t,
+                tv_usec: (timeout.subsec_nanos() as libc::suseconds_t) / 1000,
             }
+        };
+        let rawfd = self.tty.as_raw_fd();
+        let nfds = rawfd + 1;
+
+        let mut rfds: libc::fd_set = unsafe { mem::zeroed() };
+        unsafe {
+            libc::FD_SET(rawfd, &mut rfds);
+        }
+
+        // Because the sigwinch handler will interrupt select, if select returns EINTR we loop
+        // and try again. All other errors will return normally.
+        loop {
+            let res = unsafe {
+                libc::select(nfds,
+                             &mut rfds,
+                             ptr::null_mut(),
+                             ptr::null_mut(),
+                             timeout)
+            };
+
+            if res == -1 {
+                let err = Error::last_os_error();
+
+                if err.kind() == ErrorKind::Interrupted {
+                    // Errno is EINTR, loop and try again.
+                    continue;
+                } else {
+                    // Error other than EINTR, return to caller.
+                    return Err(err);
+                }
+            } else {
+                nevts = res;
+                break;
+            }
+        }
+
+        if nevts == 0 {
+            // Select timed out. Return None.
+            assert!(maybe_timeout.is_some());
+            Ok(None)
         } else {
-            // There is at least one event in the buffer already. Pop and return it.
-            Ok(self.eventbuffer.pop_front())
+            // Input is available from the terminal.
+            // Get an iterator of chars over the input stream.
+            let mut buf = String::new();
+            try!(self.tty.read_to_string(&mut buf));
+
+            assert!(buf.len() > 0);
+            Ok(self.driver.get_event(&buf))
         }
     }
 
@@ -553,72 +593,6 @@ impl Terminal {
         Ok(())
     }
 
-    /// Attempts to read any available events from the terminal into the event buffer, waiting for
-    /// the specified timeout for input to become available.
-    ///
-    /// Returns the number of events read into the buffer.
-    fn read_events(&mut self, maybe_timeout: Option<Duration>) -> Result<usize, Error> {
-        let nevts;
-        let timeout: *mut libc::timeval = match maybe_timeout {
-            None => ptr::null_mut(),
-            Some(timeout) => &mut libc::timeval {
-                tv_sec: timeout.as_secs() as libc::time_t,
-                tv_usec: (timeout.subsec_nanos() as libc::suseconds_t) / 1000,
-            }
-        };
-        let rawfd = self.tty.as_raw_fd();
-        let nfds = rawfd + 1;
-
-        let mut rfds: libc::fd_set = unsafe { mem::zeroed() };
-        unsafe {
-            libc::FD_SET(rawfd, &mut rfds);
-        }
-
-        // Because the sigwinch handler will interrupt select, if select returns EINTR we loop
-        // and try again. All other errors will return normally.
-        loop {
-            let res = unsafe {
-                libc::select(nfds,
-                             &mut rfds,
-                             ptr::null_mut(),
-                             ptr::null_mut(),
-                             timeout)
-            };
-
-            if res == -1 {
-                let err = Error::last_os_error();
-
-                if err.kind() == ErrorKind::Interrupted {
-                    // Errno is EINTR, loop and try again.
-                    continue;
-                } else {
-                    // Error other than EINTR, return to caller.
-                    return Err(err);
-                }
-            } else {
-                nevts = res;
-                break;
-            }
-        }
-
-        if nevts == 0 {
-            // No input available. Return None.
-            Ok(0)
-        } else {
-            // Input is available from the terminal.
-            // Get an iterator of chars over the input stream.
-            let mut buf = String::new();
-            try!(self.tty.read_to_string(&mut buf));
-            let mut n = 0;
-            for ch in buf.chars() {
-                // Push each character onto the event queue and increment the count.
-                self.eventbuffer.push_back(Event::Key(ch));
-                n += 1;
-            }
-            Ok(n)
-        }
-    }
-
     fn flush(&mut self) -> Result<(), Error> {
         try!(self.tty.write_all(&self.outbuffer));
         self.outbuffer.clear();
@@ -691,6 +665,7 @@ impl Drop for Terminal {
         self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)).unwrap();
         self.outbuffer.write_all(&self.driver.get(DevFn::Reset)).unwrap();
         self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
+        self.outbuffer.write_all(&self.driver.get(DevFn::ExitXmit)).unwrap();
         self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
         self.flush().unwrap();
         self.termctl.reset().unwrap();
