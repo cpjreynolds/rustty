@@ -1,8 +1,7 @@
 // Temporary fix before certain constants are used.
 #![allow(dead_code)]
 
-use std::io::{Error, ErrorKind};
-
+use term::Error;
 use term::terminfo::TermInfo;
 use term::terminfo::parm;
 use term::terminfo::parm::{Param, Variables};
@@ -48,31 +47,11 @@ const REVERSE: &'static str = "rev";
 const SETFG: &'static str = "setaf";
 const SETBG: &'static str = "setab";
 
-// Array of terminal capabilities. Used as an iterator to test for functionality.
-//
-// At the moment all functionality is required, however in the future we should implement optional
-// functionality checks so the absence of underlining or reverse video doesn't cause initialization
-// to fail.
-//
-// TODO: Optional functionality testing.
-const CAPABILITIES: &'static [&'static str] = &[ENTER_CA,
-                                                EXIT_CA,
-                                                SHOW_CURSOR,
-                                                HIDE_CURSOR,
-                                                SET_CURSOR,
-                                                CLEAR,
-                                                RESET,
-                                                UNDERLINE,
-                                                BOLD,
-                                                REVERSE,
-                                                SETFG,
-                                                SETBG];
-
 // Driver capabilities are an enum instead of string constants (there are string constants private
 // to the module however, those are only used for naming convenience and disambiguation)
 // to take advantage of compile-time type-checking instead of hoping invalid strings aren't passed.
-// This allows us to guarantee that driver accesses will succeed. In addition, using an enum means
-// Driver doesn't need hard-coded methods for each capability we want to use.
+// In addition, using an enum means Driver doesn't need hard-coded methods for each capability we
+// want to use.
 pub enum DevFn {
     EnterCa,
     ExitCa,
@@ -113,67 +92,33 @@ pub struct Driver {
     tinfo: TermInfo,
 }
 
-// Validates and returns a reference to the terminfo database.
-//
-// If this function returns Ok(..), the contained terminfo database is guaranteed to have the
-// functionality found in CAPABILITIES.
-//
-// If this function returns Err(..), the terminfo database did not contain all the required
-// functionality; the error returned will provide more specific detail.
-fn get_tinfo() -> Result<TermInfo, Error> {
-    let tinfo = TermInfo::from_env().unwrap_or({
-        TermInfo {
-            names: Default::default(),
-            bools: Default::default(),
-            numbers: Default::default(),
-            strings: Default::default(),
-        }
-    });
-
-    for capname in CAPABILITIES {
-        if !tinfo.strings.contains_key(*capname) {
-            return Err(Error::new(ErrorKind::NotFound,
-                                  format!("terminal missing capability: '{}'", capname)));
-        }
-    }
-    Ok(tinfo)
-}
-
 impl Driver {
     // Creates a new `Driver`
-    //
-    // If successful, the terminfo database is guaranteed to contain all capabilities we support.
     pub fn new() -> Result<Driver, Error> {
-        let tinfo = try!(get_tinfo());
+        let tinfo = try!(TermInfo::from_env());
         Ok(Driver { tinfo: tinfo })
     }
 
-    // Returns the device specific escape sequence for the given `DevFn`.
-    //
-    // get() will not return an error, and (in theory) should never panic. The `DevFn` enum
-    // restricts possible inputs to a subset that will not fail when passed to `parm::expand()`.
-    // This can be verified by examining the source of the `parm::expand()` function in the `term`
-    // crate.
-    //
-    // Furthermore, the pre-flight checks on initialization of `Driver` ensure that every
-    // capability is present, thus the call to `Hashmap::get()` should never fail.
-    pub fn get(&self, dfn: DevFn) -> Vec<u8> {
+    // Returns the device specific escape sequence for the given `DevFn`, or None if the terminal
+    // lacks the capability to perform the specified function.
+    pub fn get(&self, dfn: DevFn) -> Option<Vec<u8>> {
         let capname = dfn.as_str();
-        let cap = self.tinfo.strings.get(capname).unwrap();
+        self.tinfo.strings.get(capname).map(|cap| {
 
-        match dfn {
-            DevFn::SetFg(attr) |
-            DevFn::SetBg(attr) => {
-                let params = &[Param::Number(attr as i32)];
-                let mut vars = Variables::new();
-                parm::expand(cap, params, &mut vars).unwrap()
+            match dfn {
+                DevFn::SetFg(attr) |
+                DevFn::SetBg(attr) => {
+                    let params = &[Param::Number(attr as i32)];
+                    let mut vars = Variables::new();
+                    parm::expand(cap, params, &mut vars).unwrap()
+                }
+                DevFn::SetCursor(x, y) => {
+                    let params = &[Param::Number(y as i32), Param::Number(x as i32)];
+                    let mut vars = Variables::new();
+                    parm::expand(cap, params, &mut vars).unwrap()
+                }
+                _ => cap.clone(),
             }
-            DevFn::SetCursor(x, y) => {
-                let params = &[Param::Number(y as i32), Param::Number(x as i32)];
-                let mut vars = Variables::new();
-                parm::expand(cap, params, &mut vars).unwrap()
-            }
-            _ => cap.clone(),
-        }
+        })
     }
 }

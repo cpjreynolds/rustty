@@ -160,10 +160,10 @@ impl Terminal {
         };
 
         // Switch to alternate screen buffer. Writes the control code to the output buffer.
-        try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::EnterCa)));
+        try!(terminal.outbuffer_write_devfn(DevFn::EnterCa));
 
         // Hide cursor. Writes the control code to the output buffer.
-        try!(terminal.outbuffer.write_all(&terminal.driver.get(DevFn::HideCursor)));
+        try!(terminal.outbuffer_write_devfn(DevFn::HideCursor));
 
         // Resize the buffers to the size of the underlying terminals. Using the given cell as a
         // blank.
@@ -171,6 +171,13 @@ impl Terminal {
 
         // Return the initialized terminal object.
         Ok(terminal)
+    }
+
+    fn outbuffer_write_devfn(&mut self, devfn: DevFn) -> Result<(), Error> {
+        match self.driver.get(devfn) {
+            None => Ok(()),
+            Some(seq) => self.outbuffer.write_all(&seq)
+        }
     }
 
     /// Swaps buffers to display the current backbuffer.
@@ -414,7 +421,7 @@ impl Terminal {
     /// ```
     pub fn set_cursor(&mut self, x: usize, y: usize) -> Result<(), Error> {
         if self.cursor.pos().is_none() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)));
+            try!(self.outbuffer_write_devfn(DevFn::ShowCursor));
         }
         self.cursor.set_pos(Some((x, y)));
         try!(self.send_cursor());
@@ -434,7 +441,7 @@ impl Terminal {
     /// ```
     pub fn hide_cursor(&mut self) -> Result<(), Error> {
         if self.cursor.pos().is_some() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::HideCursor)));
+            try!(self.outbuffer_write_devfn(DevFn::HideCursor));
         }
         Ok(())
     }
@@ -478,7 +485,7 @@ impl Terminal {
 
     fn send_cursor(&mut self) -> Result<(), Error> {
         if let Some((cx, cy)) = self.cursor.pos() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetCursor(cx, cy))));
+            try!(self.outbuffer_write_devfn(DevFn::SetCursor(cx, cy)));
         }
         Ok(())
     }
@@ -493,7 +500,7 @@ impl Terminal {
     }
 
     fn send_clear(&mut self) -> Result<(), Error> {
-        try!(self.outbuffer.write_all(&self.driver.get(DevFn::Clear)));
+        try!(self.outbuffer_write_devfn(DevFn::Clear));
         try!(self.send_cursor());
         try!(self.flush());
         self.cursor.invalidate_last_pos();
@@ -503,14 +510,14 @@ impl Terminal {
     fn send_style(&mut self, cell: Cell) -> Result<(), Error> {
         if cell.fg() != self.laststyle.fg() || cell.bg() != self.laststyle.bg() ||
            cell.attrs() != self.laststyle.attrs() {
-            try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reset)));
+            try!(self.outbuffer_write_devfn(DevFn::Reset));
 
             match cell.attrs() {
-                Attr::Bold => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Bold))),
+                Attr::Bold => try!(self.outbuffer_write_devfn(DevFn::Bold)),
                 Attr::Underline => {
-                    try!(self.outbuffer.write_all(&self.driver.get(DevFn::Underline)))
+                    try!(self.outbuffer_write_devfn(DevFn::Underline))
                 }
-                Attr::Reverse => try!(self.outbuffer.write_all(&self.driver.get(DevFn::Reverse))),
+                Attr::Reverse => try!(self.outbuffer_write_devfn(DevFn::Reverse)),
                 _ => {}
             }
 
@@ -524,13 +531,13 @@ impl Terminal {
         match fgcol {
             Color::Default => {}
             fgc @ _ => {
-                try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetFg(fgc.as_byte()))));
+                try!(self.outbuffer_write_devfn(DevFn::SetFg(fgc.as_byte())));
             }
         }
         match bgcol {
             Color::Default => {}
             bgc @ _ => {
-                try!(self.outbuffer.write_all(&self.driver.get(DevFn::SetBg(bgc.as_byte()))));
+                try!(self.outbuffer_write_devfn(DevFn::SetBg(bgc.as_byte())));
             }
         }
         Ok(())
@@ -688,10 +695,10 @@ impl IndexMut<Pos> for Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        self.outbuffer.write_all(&self.driver.get(DevFn::ShowCursor)).unwrap();
-        self.outbuffer.write_all(&self.driver.get(DevFn::Reset)).unwrap();
-        self.outbuffer.write_all(&self.driver.get(DevFn::Clear)).unwrap();
-        self.outbuffer.write_all(&self.driver.get(DevFn::ExitCa)).unwrap();
+        self.outbuffer_write_devfn(DevFn::ShowCursor).unwrap();
+        self.outbuffer_write_devfn(DevFn::Reset).unwrap();
+        self.outbuffer_write_devfn(DevFn::Clear).unwrap();
+        self.outbuffer_write_devfn(DevFn::ExitCa).unwrap();
         self.flush().unwrap();
         self.termctl.reset().unwrap();
         SIGWINCH_STATUS.store(false, Ordering::SeqCst);
