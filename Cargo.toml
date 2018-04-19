@@ -11,6 +11,6 @@ license = "MIT"
 keywords = ["terminal", "ui", "tui", "console", "tty"]
 
 [dependencies]
-term = "0.4"
+term = "0.5"
 libc = "0.2"
 gag = "0.1"
